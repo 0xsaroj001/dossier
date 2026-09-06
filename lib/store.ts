@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { redisCredentials, utcDay } from "./config";
-import type { Dossier, LedgerRow, Stats } from "./types";
+import type { Dossier, LedgerRow, Receipt, Stats } from "./types";
 
 /**
  * Everything the app remembers: the public ledger of calls, dossiers for sharing, spend
@@ -19,6 +19,17 @@ export interface Store {
   getDossier(id: string): Promise<Dossier | null>;
   recentDossiers(limit: number): Promise<Dossier[]>;
   knownSignal(hash: string): Promise<boolean>;
+  /** The server's own copy of a finished step, keyed by its signal hash; what a saved dossier is built from. */
+  saveOutcome(hash: string, outcome: SavedOutcome): Promise<void>;
+  getOutcome(hash: string): Promise<SavedOutcome | null>;
+  /** A generic daily counter (rate limits for free endpoints). Returns the new count. */
+  bump(key: string, day: string): Promise<number>;
+}
+
+export interface SavedOutcome {
+  step: string;
+  receipt: Receipt;
+  data: unknown;
 }
 
 const LEDGER_CAP = 2000;
@@ -31,7 +42,7 @@ class MemoryStore implements Store {
   private dossiers = new Map<string, Dossier>();
   private order: string[] = [];
 
-  private bump(key: string, by = 1): number {
+  private incr(key: string, by = 1): number {
     const v = (this.counters.get(key) ?? 0) + by;
     this.counters.set(key, v);
     return v;
@@ -46,11 +57,11 @@ class MemoryStore implements Store {
   async addRow(row: LedgerRow): Promise<void> {
     this.ledger.unshift(row);
     if (this.ledger.length > LEDGER_CAP) this.ledger.length = LEDGER_CAP;
-    this.bump("calls");
-    this.bump(`calls:${row.day}`);
-    if (row.status === "ok") this.bump("calls:ok");
-    if (row.costUsd) this.bump("cost", row.costUsd);
-    this.bump(`intent:${row.intent}`);
+    this.incr("calls");
+    this.incr(`calls:${row.day}`);
+    if (row.status === "ok") this.incr("calls:ok");
+    if (row.costUsd) this.incr("cost", row.costUsd);
+    this.incr(`intent:${row.intent}`);
     this.add("users:all", row.visitor);
     this.add(`users:${row.day}`, row.visitor);
     if (row.signalHash) this.add("signals", row.signalHash);
@@ -81,7 +92,7 @@ class MemoryStore implements Store {
   }
 
   async incrVisitor(hash: string, day: string): Promise<number> {
-    return this.bump(`visitor:${hash}:${day}`);
+    return this.incr(`visitor:${hash}:${day}`);
   }
 
   async budgetUsed(day: string): Promise<number> {
@@ -89,7 +100,7 @@ class MemoryStore implements Store {
   }
 
   async incrBudget(day: string): Promise<number> {
-    return this.bump(`budget:${day}`);
+    return this.incr(`budget:${day}`);
   }
 
   async saveDossier(d: Dossier): Promise<void> {
@@ -111,6 +122,24 @@ class MemoryStore implements Store {
 
   async knownSignal(hash: string): Promise<boolean> {
     return this.sets.get("signals")?.has(hash) ?? false;
+  }
+
+  private outcomes = new Map<string, SavedOutcome>();
+
+  async saveOutcome(hash: string, outcome: SavedOutcome): Promise<void> {
+    this.outcomes.set(hash, outcome);
+    if (this.outcomes.size > 5000) {
+      const first = this.outcomes.keys().next().value;
+      if (first) this.outcomes.delete(first);
+    }
+  }
+
+  async getOutcome(hash: string): Promise<SavedOutcome | null> {
+    return this.outcomes.get(hash) ?? null;
+  }
+
+  async bump(key: string, day: string): Promise<number> {
+    return this.incr(`rate:${key}:${day}`);
   }
 }
 
@@ -216,6 +245,23 @@ class RedisStore implements Store {
 
   async knownSignal(hash: string): Promise<boolean> {
     return Boolean(await this.r.sismember(K("signals"), hash));
+  }
+
+  async saveOutcome(hash: string, outcome: SavedOutcome): Promise<void> {
+    await this.r.set(K(`outcome:${hash}`), JSON.stringify(outcome), { ex: DOSSIER_TTL });
+  }
+
+  async getOutcome(hash: string): Promise<SavedOutcome | null> {
+    const raw = await this.r.get<string | SavedOutcome>(K(`outcome:${hash}`));
+    if (!raw) return null;
+    return typeof raw === "string" ? (JSON.parse(raw) as SavedOutcome) : raw;
+  }
+
+  async bump(key: string, day: string): Promise<number> {
+    const k = K(`rate:${key}:${day}`);
+    const v = await this.r.incr(k);
+    if (v === 1) await this.r.expire(k, DAY_TTL);
+    return v;
   }
 }
 

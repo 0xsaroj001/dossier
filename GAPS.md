@@ -4,13 +4,11 @@ Read before trusting a claim. Newest first within each state.
 
 ## Open
 
-### G1 · The paid path has never run — BLOCKER until the operator runs it
-Everything up to the payment is verified against the live node for free. The payment itself
-needs the operator's key. The client is built the way the official Telegraph MCP client builds
-it, on the same pinned `@x402/*` 2.24.0, with the request materialised before the payment
-wrapper (ARCHITECTURE A11) and a $0.02 per-payment cap in the client's spend controls. Close by
-running `npm run live` twice (research, news) and pasting the receipts here with the settlement
-hashes.
+### G1b · The deployment cannot pay until the operator adds the key and Redis
+<https://dossier-wukong4.vercel.app> is live with the budget, caps and salt set. `PAYER_PRIVATE_KEY`
+must be added by the operator (`vercel env add PAYER_PRIVATE_KEY production`, or the dashboard)
+and Upstash Redis connected from the Storage tab, then redeploy. Until then `/api/health` says
+`payerConfigured: false` and `store: "memory"`.
 
 ### G2 · What `context` does to the miner's parameters is not pinned down
 The docs say it is "merged into the routed request body". Whether it overrides or yields to the
@@ -20,12 +18,13 @@ only where the payload is long or structured (url, text, target language, chat m
 repeats the passage in the question itself. Watch the first live run for `warnings` on the
 receipts.
 
-### G3 · The router may hand a link to the inline extractor
-livecert is #1 for CONTENT_EXTRACTION and reads inline text; it fetches nothing. If the router
-sends a page question there, the answer is fields pulled from the question string. The reader
-marks that *unusable* and the second phrasing is sent, which is a second draw, not a guarantee.
-Two extraction questions per dossier (the page, then the abstract) give two more draws; when no
-abstract is obtained, later steps say so and work from the page excerpt or the title.
+### G3 · The page is read by the app, not by the network
+Verified with paid probes on 2026-09-06: every phrasing containing a link was routed to
+livecert (#1 for CONTENT_EXTRACTION), whose `/extract` reads inline text and returned empty
+fields; "search the web for arXiv 1706.03762" went to an academic search of the literal string.
+Dossier therefore reads the page's metadata tags itself (ARCHITECTURE A2b), labelled as free.
+Pages without `citation_*` or Open Graph abstracts (many publisher paywalls) give a title and
+no abstract; the abstract-dependent steps then skip and say why.
 
 ### G4 · CONTENT_VERIFICATION has one miner and it verifies images
 The provenance question is put to the router as written and accepted under
@@ -76,6 +75,14 @@ classifier still files them correctly, and whether it truncates what it copies i
 `text`, can only be seen with paid traffic. `context` carries the exact passage as a hedge.
 
 ## Closed
+
+### G1 · The paid path — CLOSED 2026-09-06 ~09:40 UTC, paying locally
+Payer `0xFEc66E0F5c64296fF190EdCeD88C781eeEdFd9d3`. First routed calls settled at $0.01 each (for
+example signal `0x216578cd…` → tx `0xd38f1c13…`, signal `0xf048a710…` → tx `0x3fd5e3d4…`). The
+news dossier answered 4/4 through the router (livecert, verity-news-search, newswire-search,
+test-mymemory-translate). Two research dossiers through the UI passed the paid journey test
+(at least five steps with signal hashes each). Two early `unpaid` refusals were transient and
+did not recur.
 
 ### G0 · Direct-dispatch request shapes — SUPERSEDED 2026-09-06 06:20 UTC
 Eleven direct payloads had been validated against the node's free pre-check. The operator then

@@ -425,6 +425,16 @@ async function askOnce(
   return { outcome: { receipt, data }, usable, accepted, error: null };
 }
 
+/** The server keeps its own copy of every finished step, keyed by signal hash; saved dossiers are built from these, never from the browser's copy. */
+async function keep(ctx: RunContext, spec: StepSpec, done: Outcome): Promise<void> {
+  if (!done.receipt.signalHash) return;
+  try {
+    await ctx.store.saveOutcome(done.receipt.signalHash, { step: spec.id, receipt: done.receipt, data: done.data });
+  } catch (e) {
+    console.error("outcome write failed:", (e as Error).message);
+  }
+}
+
 export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Context, ctx: RunContext): Promise<StepResult> {
   const base = { id: spec.id, title: spec.title, intent: spec.intent };
   const derived = deriveInput(spec, parsed, context);
@@ -449,6 +459,7 @@ export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Cont
       }
       if (r.outcome && r.usable && r.accepted) {
         const done = finish(spec, r.outcome, derived.input);
+        await keep(ctx, spec, done);
         return { ...base, status: "ok", receipt: done.receipt, data: done.data, error: null, attempts };
       }
       if (r.outcome && r.usable && !r.accepted && !spec.strict && !offTarget) offTarget = r.outcome;
@@ -457,6 +468,7 @@ export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Cont
     if (offTarget) {
       offTarget.receipt.routerReasoning = `Filed under ${offTarget.receipt.routerIntent ?? "another intent"} rather than ${spec.intent}. ${offTarget.receipt.routerReasoning ?? ""}`.trim();
       const done = finish(spec, offTarget, derived.input);
+      await keep(ctx, spec, done);
       return { ...base, status: "ok", receipt: done.receipt, data: done.data, error: null, attempts };
     }
     return { ...base, status: "error", receipt: null, data: null, error: lastError, attempts };

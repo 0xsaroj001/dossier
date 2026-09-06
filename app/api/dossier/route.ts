@@ -35,8 +35,9 @@ function publicUrl(req: NextRequest): string {
 }
 
 /**
- * Saves a finished dossier for sharing. Only steps whose receipt carries a signal hash this
- * app itself recorded are kept, so a shared page cannot show a receipt the app never got.
+ * Saves a finished dossier for sharing. A finished step is taken from the server's own copy,
+ * keyed by the signal hash the browser names; the browser's version of a receipt or its data
+ * is never stored, so a shared page cannot show anything the network did not say.
  */
 export async function POST(req: NextRequest) {
   const json = await req.json().catch(() => null);
@@ -51,16 +52,16 @@ export async function POST(req: NextRequest) {
     const s = raw as StepResult;
     const spec = s && typeof s === "object" ? known.get(s.id) : undefined;
     if (!spec) continue;
-    const hash = s.receipt?.signalHash ?? null;
-    const okReceipt = s.status === "ok" && s.receipt && hash && (await store.knownSignal(hash));
-    if (s.status === "ok" && !okReceipt) continue;
+    const hash = typeof s.receipt?.signalHash === "string" && /^0x[0-9a-fA-F]{64}$/.test(s.receipt.signalHash) ? s.receipt.signalHash : null;
+    const saved = s.status === "ok" && hash ? await store.getOutcome(hash) : null;
+    if (s.status === "ok" && (!saved || saved.step !== spec.id)) continue;
     steps.push({
       id: spec.id,
       title: spec.title,
       intent: spec.intent,
       status: s.status === "ok" ? "ok" : s.status === "skipped" ? "skipped" : "error",
-      receipt: okReceipt ? s.receipt : null,
-      data: okReceipt ? s.data : null,
+      receipt: saved ? saved.receipt : null,
+      data: saved ? saved.data : null,
       error: typeof s.error === "string" ? s.error.slice(0, 500) : null,
       attempts: Array.isArray(s.attempts) ? s.attempts.slice(0, 8) : [],
     });

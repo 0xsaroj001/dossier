@@ -19,6 +19,16 @@ Read first every session. Keep it short: decisions and why, lessons and what the
   the web link.
 - Docs follow the hackathon framework: PRD, ARCHITECTURE, PHASES, GAPS, MEMORY, DEMO.
 
+- **The page is read by the app.** Paid probes showed the router sends every link question to
+  the inline-only extractor; the app reads the page's metadata tags for free and says so, and
+  the network is asked what it can answer (facts from the abstract, a summary, detection,
+  fraud, fact-check, provenance, related work, translation).
+- Briefings are worded as "write from these notes": with "news" or "headlines" in the
+  question the router filed the writing task as NEWS_SEARCH and a search miner answered.
+- Deployed on the operator's existing Vercel team (allowed from ~10:00 UTC); SSO deployment
+  protection was on by default and had to be switched off with `vercel project protection
+  disable --sso`, or every visitor was sent to a Vercel login.
+
 **Lessons from the live node and the docs, all free**
 
 - `POST /engine/v1/ask` takes `{query, context?}`; `context` is "merged into the routed request

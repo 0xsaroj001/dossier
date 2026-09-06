@@ -29,17 +29,19 @@ accept-list and a reader. Typecheck clean; `next build` clean.
 - **Open:** the first paid question. Needs the operator's `.env.local`. Command and expected
   output in DEMO.md.
 
-## Phase 3 — Ship (operator) — next
+## Phase 3 — Ship — mostly done, 2026-09-06 ~10:30 UTC
 
-1. Create `.env.local` from `.env.example`; fund the burner from faucet.circle.com; set
-   `DAILY_CALL_BUDGET=400`, `VISITOR_SALT`, `PUBLIC_URL`.
-2. `npm run preflight`, then `npm run live -- research "https://arxiv.org/abs/1706.03762 in Hindi"`,
-   then `npm run live -- news "AI regulation in India, in Hindi"`. Paste the receipts into
-   GAPS G1 and close it; note any `warnings` for G2.
-3. Push to `github.com/0xsaroj001/dossier` (commands in DEMO.md).
-4. Import into Vercel from the separate account; add the env vars and Upstash Redis; deploy;
-   set `PUBLIC_URL`; run `BASE_URL=https://… E2E_PAID=1 npm run e2e`.
-5. Re-check the Track 3 tab at submissions.telegraphprotocol.com and fill the form.
+Done: wallet funded (55 USDC), preflight clean, paid news dossier 4/4, two paid research
+dossiers through the UI, repo pushed to `github.com/0xsaroj001/dossier`, production deployed at
+<https://dossier-wukong4.vercel.app> with budget, caps, salt and `PUBLIC_URL` set, SSO protection
+off, free judge journey 8/8 against production.
+
+Left for the operator:
+1. `vercel env add PAYER_PRIVATE_KEY production` (prompts for the value), then Storage →
+   Upstash Redis → Connect in the Vercel dashboard, then `vercel deploy --prod`.
+2. `curl https://dossier-wukong4.vercel.app/api/health` → `payerConfigured: true`, `store: "redis"`.
+3. `BASE_URL=https://dossier-wukong4.vercel.app E2E_PAID=1 npm run e2e` → 9 passed.
+4. Re-check the Track 3 tab at submissions.telegraphprotocol.com and fill the form.
 
 ## Phase 4 — Distribution, until the deadline
 

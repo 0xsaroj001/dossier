@@ -42,6 +42,15 @@ router's reasoning, all of which land on the receipt. The direct path
 (`/engine/v1/ask/{minerId}`) is not used anywhere: the protocol's judgement about who should
 answer is the product, not something to route around.
 
+**A2b. The page is read by the app, for free, and says so.** Three phrasings of "read this
+link" were routed to the #1 CONTENT_EXTRACTION miner, an inline-text extractor that fetches
+nothing, and a "search the web for this paper" phrasing went to an academic search of the
+literal string. The network cannot fetch a page through the router today. `lib/source.ts`
+reads the page's `citation_*` and Open Graph tags (public host only, DNS-checked, redirects
+re-checked, 40 pages per browser per day), the UI labels it as free and not a Telegraph call,
+and every paid question works on that abstract. CONTENT_EXTRACTION is then asked what its
+leader is good at: structured facts from inline text.
+
 **A3. Short questions, structured hints.** The classifier sees a natural sentence; anything
 long or exact (the abstract to classify, the text to translate, the briefing material) also
 travels in `context`, which the node merges into the routed request body. The question repeats
@@ -73,9 +82,10 @@ router may pick a miner charging more than a cent, so the x402 client's spend co
 payment at `MAX_CALL_PRICE_USDC`; a payment above the cap is never constructed and costs
 nothing.
 
-**A8. Dossiers are saved only with receipts the app itself recorded.** The browser assembles the
-dossier from step results and posts it back; the server keeps a step's receipt only if its
-signal hash is in the ledger. A shared page therefore cannot show a receipt the app never got.
+**A8. Dossiers are saved from the server's own copies.** Every finished step is stored
+server-side under its signal hash. The browser posts the dossier back naming those hashes; the
+server rebuilds each finished step from its own copy and never stores the browser's version of
+a receipt or its data. A shared page therefore cannot show anything the network did not say.
 
 **A9. Two counts of the same thing.** The ledger is the app's record. The chain is not: the
 payer wallet's USDC transfers to the Telegraph collector are read from Blockscout and shown

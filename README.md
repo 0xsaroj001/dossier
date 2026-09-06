@@ -8,9 +8,13 @@ ranked miner, and answers; Dossier assembles the answers into one case file wher
 says which miner answered, how it was routed, how sure it was, what it cost, and where the
 payment settled on Base Sepolia.
 
-- **Research mode**, eight questions over seven intents: `CONTENT_EXTRACTION` (the page, then
-  its abstract), `AI_TEXT_DETECTION`, `FRAUD_DETECTION`, `FACT_CHECK`, `CONTENT_VERIFICATION`
-  (the provenance question), `ACADEMIC_SEARCH`, `LANGUAGE_TRANSLATION`.
+**Live: <https://dossier-wukong4.vercel.app>** · [ledger](https://dossier-wukong4.vercel.app/ledger)
+
+- **Research mode**: Dossier first reads the page's own metadata tags (title, authors, date,
+  abstract) for free, then puts eight questions to the router over seven intents:
+  `CONTENT_EXTRACTION` (structured facts from the abstract), `CHAT_COMPLETION` (a plain-words
+  summary), `AI_TEXT_DETECTION`, `FRAUD_DETECTION`, `FACT_CHECK`, `CONTENT_VERIFICATION` (the
+  provenance question), `ACADEMIC_SEARCH`, `LANGUAGE_TRANSLATION`.
 - **News mode**, three to four questions over four intents: `NEWS_HEADLINES`, `NEWS_SEARCH`,
   `CHAT_COMPLETION`, `LANGUAGE_TRANSLATION`.
 
@@ -98,9 +102,11 @@ absolute. Without Redis everything still works, in memory, per instance.
 ## Limitations
 
 - Testnet. Base Sepolia, testnet USDC. The answers are real; the money is not.
-- The router decides. It may hand a link to an extractor that only reads inline text, or file
-  a question under a neighbouring intent; Dossier shows that and asks once more in different
-  words, but it never overrides the network.
+- The router hands every question that contains a link to the #1 content-extraction miner,
+  which reads inline text and cannot fetch (verified 2026-09-06, three phrasings). So the page
+  itself is read by Dossier from its metadata tags, free and labelled as such, and every paid
+  question works on that abstract. The router still decides every miner; a question filed
+  under a neighbouring intent is shown as off-target and asked once more in different words.
 - `CONTENT_VERIFICATION` currently has a single miner on the network and it verifies images.
   The provenance question is put to the router as written; it usually lands on an academic
   search or a fact-check, and the receipt says which.
