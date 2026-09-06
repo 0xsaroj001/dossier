@@ -281,8 +281,10 @@ export interface Ranked {
 /** Active miners serving `intent`, best rank first, within the price cap. Unscored miners last. */
 export async function rankedFor(intent: string, maxPriceUsdc = config().MAX_CALL_PRICE_USDC): Promise<Ranked[]> {
   const miners = await minersForIntent(intent);
+  const blocked = new Set(config().MINER_BLOCKLIST);
   return miners
     .filter((m) => (m.activation_status ?? "active") === "active")
+    .filter((m) => !blocked.has(m.slug.toLowerCase()))
     .filter((m) => (m.supported_intents ?? []).includes(intent))
     .filter((m) => priceUsdc(m) <= maxPriceUsdc)
     .filter((m) => !/^https?:\/\/(127\.|localhost|0\.0\.0\.0)/i.test(m.base_url ?? ""))

@@ -104,6 +104,15 @@ describe("spend guards", () => {
     resetConfigForTests();
   });
 
+  it("parses the miner blocklist", async () => {
+    process.env["MINER_BLOCKLIST"] = " LiveCert, tavily ,";
+    resetConfigForTests();
+    const { config } = await import("@/lib/config");
+    expect(config().MINER_BLOCKLIST).toEqual(["livecert", "tavily"]);
+    delete process.env["MINER_BLOCKLIST"];
+    resetConfigForTests();
+  });
+
   it("pauses everything with one flag", async () => {
     process.env["PAYER_PRIVATE_KEY"] = "3".repeat(64);
     process.env["DAILY_CALL_BUDGET"] = "100";

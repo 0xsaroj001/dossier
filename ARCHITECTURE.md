@@ -58,6 +58,7 @@ for the stated label.
 **A5. Spending is off unless deliberately on.** No key, zero budget and no pause flag is the
 default. A global daily budget, a per-browser daily allowance (a random cookie, stored only as a
 salted hash), a price cap of $0.02 per call and a pause flag are checked before every attempt.
+An optional `MINER_BLOCKLIST` removes named miners from every candidate list, whatever their rank.
 
 **A6. Dossiers are saved only with receipts the app itself recorded.** The browser assembles the
 dossier from step results and posts it back; the server keeps a step's receipt only if its

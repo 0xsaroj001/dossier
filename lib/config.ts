@@ -24,6 +24,11 @@ const schema = z.object({
   DAILY_CALL_BUDGET: z.coerce.number().int().min(0).default(0),
   VISITOR_DAILY_CALLS: z.coerce.number().int().min(0).default(64),
   MAX_CALL_PRICE_USDC: z.coerce.number().min(0).default(0.02),
+  /** Comma-separated miner slugs the app must never call, whatever their rank. */
+  MINER_BLOCKLIST: z
+    .string()
+    .default("")
+    .transform((v) => v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
   PAUSED: flag,
   VISITOR_SALT: z.string().min(1).default("dossier-dev-salt"),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
