@@ -75,7 +75,7 @@ one credit is one settled request, and when a merchant's balance hits zero `/set
 the network's account, not the payer's: our wallet holds 54 USDC and settled about 50 calls
 until 07:30:42 UTC; the collector received three payments at 11:30 and nothing else since 09:17
 (Blockscout, read 11:45). Nothing in the app can fix it; every step shows the node's message and
-that nothing was charged. Reported to the organisers; re-run `npm run ask -- "test"` to see when
+that nothing was charged. Worth reporting in the hackathon Discord; re-run `npm run ask -- "test"` to see when
 it clears.
 
 ## Closed
