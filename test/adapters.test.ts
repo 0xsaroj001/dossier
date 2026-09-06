@@ -87,6 +87,7 @@ describe("lookup and fallbacks", () => {
     expect(fallbackData("translate", "नमस्ते", undefined)).toEqual({ translation: "नमस्ते" });
     expect(fallbackData("search", "found things", undefined)).toEqual({ articles: [], answer: "found things" });
     expect(fallbackData("related", 'Papers: "PVT v2: Improved baselines" and more', undefined)).toMatchObject({ papers: ["PVT v2: Improved baselines"] });
+    expect(fallbackData("extract", "### Quantities:\n- 28.4 BLEU (a score)\n- **3.5 days** (training)\n\nText.", undefined)).toMatchObject({ facts: ["28.4 BLEU (a score)", "3.5 days (training)"] });
   });
 });
 

@@ -91,6 +91,18 @@ test("the workbench runs every step and saves a shareable dossier, paid or not",
   }
 });
 
+test("paid: a phishing message gets a Caution verdict with receipts", async ({ page }) => {
+  test.skip(process.env["E2E_PAID"] !== "1", "set E2E_PAID=1 to spend about $0.05 of testnet USDC");
+  await page.goto("/");
+  await page.getByRole("tab", { name: "Is this safe?" }).click();
+  await page.getByLabel("Your question").fill("Dear customer, your SBI account will be blocked today. Verify your KYC now at https://example.com/verify and send 0.1 ETH to 0x000000000000000000000000000000000000dEaD to unlock it.");
+  await page.getByRole("button", { name: "Check it" }).click();
+  await expect(page.locator(".step")).toHaveCount(5);
+  await expect(page.locator(".share")).toBeVisible({ timeout: 230_000 });
+  expect(await page.locator('.step[data-state="ok"]').count()).toBeGreaterThanOrEqual(3);
+  await expect(page.locator(".front .card").first()).toContainText(/Caution|No red flags/);
+});
+
 test("paid: a real research dossier carries signal hashes and settlements", async ({ page }) => {
   test.skip(process.env["E2E_PAID"] !== "1", "set E2E_PAID=1 to spend about $0.10 of testnet USDC");
   await page.goto("/");
@@ -100,7 +112,7 @@ test("paid: a real research dossier carries signal hashes and settlements", asyn
   await expect(page.locator(".share")).toBeVisible({ timeout: 230_000 });
   const okSteps = await page.locator('.step[data-state="ok"]').count();
   expect(okSteps).toBeGreaterThanOrEqual(5);
-  await expect(page.locator(".step").first()).toContainText("Signal");
+  await expect(page.locator(".receipt").first()).toContainText("Signal");
   const hashLinks = await page.locator('.receipt a[href^="/verify/0x"]').count();
   expect(hashLinks).toBeGreaterThanOrEqual(5);
   await expect(page.locator(".totals")).toContainText("Telegraph calls");

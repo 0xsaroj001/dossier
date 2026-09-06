@@ -375,8 +375,16 @@ export function fallbackData(stepId: string, answer: string, parsedData: unknown
       return { papers: arr(d["papers"]).length ? d["papers"] : titlesFromProse(answer), answer };
     case "summary":
       return { text: str(d["text"]) ?? answer };
-    case "extract":
-      return { extracted: d["extracted"] ?? null, facts: arr(d["facts"]), answer };
+    case "extract": {
+      const facts = arr(d["facts"]).length
+        ? arr(d["facts"])
+        : answer
+            .split(/\r?\n/)
+            .map((l) => l.replace(/^\s*[-*•]\s+/, "").replace(/\*\*/g, "").trim())
+            .filter((l, i, all) => l && /^[-*•]\s+/.test(answer.split(/\r?\n/)[i] ?? "") && all.indexOf(l) === i)
+            .slice(0, 20);
+      return { extracted: d["extracted"] ?? null, facts, answer };
+    }
     default:
       return Object.keys(d).length ? d : { answer };
   }

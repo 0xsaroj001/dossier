@@ -4,13 +4,14 @@ Read before trusting a claim. Newest first within each state.
 
 ## Open
 
-### G2 · What `context` does to the miner's parameters is not pinned down
-The docs say it is "merged into the routed request body". Whether it overrides or yields to the
-parameters the router fills from the question is unknown, and whether a strict miner rejects an
-unknown key (qarinah declares `additionalProperties: false`) is unknown. The app sends `context`
-only where the payload is long or structured (url, text, target language, chat messages) and
-repeats the passage in the question itself. Watch the first live run for `warnings` on the
-receipts.
+### G2 · A `context` hint can break the miner the router picks
+Confirmed 2026-09-06 12:50 UTC: the key-facts question, sent with `context: {text}`, was routed to
+a Bedrock chat miner whose schema rejected the extra key ("extraneous key [text] is not
+permitted"), a 500 with nothing charged. The hint was removed from that step. The translation
+hint (`text`, `q`, `target_language`, `to`, `langpair`) has worked live with the MyMemory
+miner; the authorship hint (`text`) and the chat `messages` hints have not yet been seen to
+break anything, but any strict miner the router picks could reject them. If a step fails twice
+with "failed on its side", drop its hint first.
 
 ### G3 · The page is read by the app, not by the network
 Verified with paid probes on 2026-09-06: every phrasing containing a link was routed to

@@ -19,7 +19,9 @@ import { safetyVerdict } from "./verdict";
 const WRITING = ["CHAT_COMPLETION", "TEXT_GENERATION", "LANGUAGE_GENERATION", "RESEARCH_SYNTHESIS"];
 
 export const RESEARCH_STEPS: StepSpec[] = [
-  { id: "extract", title: "Key facts from the abstract", intent: "CONTENT_EXTRACTION", accept: ["CONTENT_EXTRACTION"], strict: true, needs: [], blurb: "Dates, quantities, named entities and events, pulled from the abstract by the extraction miner the router picks." },
+  // The router has filed this under CONTENT_EXTRACTION in its reasoning and then handed it to a
+  // chat miner, whose extraction was good (2026-09-06); both are accepted and the receipt says which.
+  { id: "extract", title: "Key facts from the abstract", intent: "CONTENT_EXTRACTION", accept: ["CONTENT_EXTRACTION", ...WRITING], needs: [], blurb: "Dates, quantities, named entities and events, pulled from the abstract by the miner the router picks." },
   { id: "summary", title: "Plain-words summary", intent: "CHAT_COMPLETION", accept: WRITING, strict: true, needs: [], blurb: "What the paper claims and why it matters, in three sentences a non-specialist can follow." },
   { id: "authorship", title: "AI-text detection", intent: "AI_TEXT_DETECTION", accept: ["AI_TEXT_DETECTION", "TEXT_AUTHENTICITY_CHECK"], strict: true, needs: [], blurb: "Was the abstract written by a person or a model?" },
   { id: "fraud", title: "Fraud and retraction record", intent: "FRAUD_DETECTION", accept: ["FRAUD_DETECTION"], strict: true, needs: [], blurb: "Any documented misconduct, retraction, paper mill or predatory venue." },
@@ -168,10 +170,10 @@ export async function deriveInput(spec: StepSpec, parsed: ParsedQuery, context: 
       const prose = proseOf(meta);
       if (!prose) return { skip: "The page carried no abstract in its metadata, so there is nothing to extract from." };
       const text = prose.slice(0, 4000);
+      // No context hint here: a chat miner the router picked rejected an extra `text` key (2026-09-06).
       return {
         input: { text, title: title ?? undefined },
         queries: [`Extract the dates, quantities, named entities and events from: ${text}`, `Extract the key structured facts, numbers, names, dates and places, from the following text: ${text}`],
-        context: { text },
       };
     }
     case "summary": {

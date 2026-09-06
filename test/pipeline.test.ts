@@ -31,7 +31,7 @@ describe("inputs", () => {
   it("asks for structured facts from the abstract, and skips without one", async () => {
     const d = await deriveInput(spec("extract"), parsed, ctx);
     expect("queries" in d && d.queries[0]).toMatch(/^Extract the dates, quantities, named entities and events from: The dominant/);
-    expect("context" in d && d.context).toEqual({ text: ABSTRACT });
+    expect("context" in d ? d.context : undefined).toBeUndefined();
     expect(await deriveInput(spec("extract"), parsed, {})).toHaveProperty("skip");
   });
   it("asks for a plain-words summary with the abstract as chat context", async () => {
