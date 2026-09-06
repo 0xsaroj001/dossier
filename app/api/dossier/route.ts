@@ -11,6 +11,18 @@ export const dynamic = "force-dynamic";
 
 const body = z.object({
   parsed: z.unknown(),
+  source: z
+    .object({
+      url: z.string().max(2000),
+      title: z.string().max(500).nullable(),
+      authors: z.array(z.string().max(120)).max(20),
+      abstract: z.string().max(6000).nullable(),
+      date: z.string().max(60).nullable(),
+      year: z.string().max(8).nullable(),
+      site: z.string().max(120).nullable(),
+    })
+    .nullable()
+    .optional(),
   steps: z.array(z.unknown()).max(12),
 });
 
@@ -55,7 +67,8 @@ export async function POST(req: NextRequest) {
   }
   if (steps.length === 0) return bad("Nothing to save.");
   const id = randomBytes(6).toString("base64url");
-  const dossier: Dossier = { id, mode: parsed.mode, query: parsed.query, parsed, createdAt: new Date().toISOString(), steps, summary: summarize(parsed, steps) };
+  const source = parsed.mode === "research" ? (b.data.source ?? null) : null;
+  const dossier: Dossier = { id, mode: parsed.mode, query: parsed.query, parsed, createdAt: new Date().toISOString(), source, steps, summary: summarize(parsed, steps, source) };
   await store.saveDossier(dossier);
   const visitor = visitorFrom(req);
   return withVisitor(NextResponse.json({ ok: true, id, url: `${publicUrl(req)}/d/${id}` }), visitor);

@@ -8,7 +8,7 @@ const ABSTRACT =
 
 describe("plan", () => {
   it("plans eight research questions with a language and seven without", () => {
-    expect(buildPlan(parseQuery("research", "https://arxiv.org/abs/1 in Hindi")).map((s) => s.id)).toEqual(["read", "abstract", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
+    expect(buildPlan(parseQuery("research", "https://arxiv.org/abs/1 in Hindi")).map((s) => s.id)).toEqual(["extract", "summary", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
     expect(buildPlan(parseQuery("research", "https://arxiv.org/abs/1")).length).toBe(7);
     expect(buildPlan(parseQuery("news", "AI regulation in India in Hindi")).map((s) => s.id)).toEqual(["headlines", "search", "brief", "translate"]);
   });
@@ -22,22 +22,25 @@ describe("plan", () => {
 describe("inputs", () => {
   const parsed = parseQuery("research", "https://arxiv.org/abs/1706.03762 in Hindi");
   const spec = (id: string) => RESEARCH_STEPS.find((s) => s.id === id)!;
-  const ctx = {
-    read: { title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: null, date: "12 Jun 2017", year: "2017", excerpt: "x" },
-    abstract: { title: "Attention Is All You Need", authors: [], abstract: ABSTRACT, date: null, year: null, excerpt: null },
-  };
+  const ctx = { source: { url: "https://arxiv.org/abs/1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: ABSTRACT, date: "2017-06-12", year: "2017", site: "arxiv.org" } };
 
-  it("merges what the two extraction questions found", () => {
-    const m = metaOf(ctx);
-    expect(m).toMatchObject({ title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: ABSTRACT, year: "2017" });
+  it("reads the paper from the page's metadata", () => {
+    expect(metaOf(ctx)).toMatchObject({ title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: ABSTRACT, year: "2017" });
+    expect(metaOf({}).title).toBeNull();
   });
-  it("asks the page questions with the link as a structured hint", () => {
-    const d = deriveInput(spec("read"), parsed, {});
-    expect("queries" in d && d.queries[0]).toMatch(/^Read the research paper page at https:\/\/arxiv.org\/abs\/1706.03762/);
-    expect("context" in d && d.context).toEqual({ url: "https://arxiv.org/abs/1706.03762" });
+  it("asks for structured facts from the abstract, and skips without one", () => {
+    const d = deriveInput(spec("extract"), parsed, ctx);
+    expect("queries" in d && d.queries[0]).toMatch(/^Extract the dates, quantities, named entities and events from: The dominant/);
+    expect("context" in d && d.context).toEqual({ text: ABSTRACT });
+    expect(deriveInput(spec("extract"), parsed, {})).toHaveProperty("skip");
+  });
+  it("asks for a plain-words summary with the abstract as chat context", () => {
+    const d = deriveInput(spec("summary"), parsed, ctx);
+    expect("queries" in d && d.queries[0]).toMatch(/^In three plain sentences/);
+    expect("context" in d && (d.context?.["messages"] as Array<{ role: string }>)[0]?.role).toBe("system");
   });
   it("skips authorship on thin prose and sends the abstract as text otherwise", () => {
-    expect(deriveInput(spec("authorship"), parsed, { abstract: { abstract: "too short" } })).toHaveProperty("skip");
+    expect(deriveInput(spec("authorship"), parsed, { source: { abstract: "too short" } })).toHaveProperty("skip");
     const d = deriveInput(spec("authorship"), parsed, ctx);
     expect("context" in d && d.context).toEqual({ text: ABSTRACT });
     expect("queries" in d && d.queries[0]).toMatch(/^Was the following passage written by an AI or by a human\? Passage: The dominant/);
@@ -54,18 +57,19 @@ describe("inputs", () => {
     expect("queries" in d && d.queries[1]).toMatch(/^Search the academic literature/);
     expect(deriveInput(spec("provenance"), parsed, {})).toHaveProperty("skip");
   });
-  it("translates whole sentences within the cap and names the language in the hint", () => {
+  it("translates whole sentences within the cap and names the language in every translator's shape", () => {
     const d = deriveInput(spec("translate"), parsed, ctx);
-    expect("context" in d && d.context).toMatchObject({ target_language: "Hindi", to: "Hindi" });
+    expect("context" in d && d.context).toMatchObject({ target_language: "Hindi", to: "Hindi", langpair: "en|hi" });
     expect("queries" in d && d.queries[0]).toMatch(/^Translate the following text into Hindi: /);
     expect(clipSentences("One. Two. Three.", 9)).toEqual({ text: "One. Two.", truncated: true });
   });
-  it("builds the news briefing from headlines and coverage, and skips with none", () => {
+  it("words the briefing as a writing task from notes, never as a search", () => {
     const news = parseQuery("news", "AI regulation in India");
     const brief = NEWS_STEPS.find((s) => s.id === "brief")!;
     const d = deriveInput(brief, news, { headlines: { items: [{ title: "H1", source: "BBC" }] }, search: { articles: [{ title: "A1", source: "Reuters", description: "d" }] } });
+    expect("queries" in d && d.queries[0]).toMatch(/^Write a briefing of 120 to 180 words on AI regulation in India using only the notes below\. Do not look anything up\./);
+    expect("queries" in d && d.queries[0]).not.toMatch(/news|headline|coverage/i);
     expect("context" in d && (d.context?.["messages"] as Array<{ content: string }>)[1]?.content).toMatch(/H1 \(BBC\)[\s\S]*A1 \(Reuters\)/);
-    expect("queries" in d && d.queries[0]).toMatch(/^Write a news briefing of 120 to 180 words about AI regulation in India/);
     expect(deriveInput(brief, news, {})).toHaveProperty("skip");
   });
   it("phrases headlines and search with the region", () => {
@@ -78,16 +82,16 @@ describe("inputs", () => {
 });
 
 describe("summary", () => {
-  it("counts every question asked and what it cost, including failed ones", () => {
+  it("counts every question asked and what it cost, including failed ones, and names the paper", () => {
     const parsed = parseQuery("research", "https://arxiv.org/abs/1");
     const steps: StepResult[] = [
       {
-        id: "read",
-        title: "Read",
+        id: "extract",
+        title: "Key facts",
         intent: "CONTENT_EXTRACTION",
         status: "ok",
         receipt: null,
-        data: { title: "T" },
+        data: { facts: ["dates: 2017"] },
         error: null,
         attempts: [
           { phrasing: 1, minerSlug: "a", minerRank: 2, intent: "WEB_SEARCH", outcome: "off-target", durationMs: 10, costUsd: 0.01, note: null },
@@ -96,9 +100,10 @@ describe("summary", () => {
       },
       { id: "fraud", title: "Fraud", intent: "FRAUD_DETECTION", status: "error", receipt: null, data: null, error: "boom", attempts: [] },
     ];
-    const s = summarize(parsed, steps);
+    const s = summarize(parsed, steps, { title: "T", authors: ["A"], year: "2017" });
     expect(s.calls).toBe(2);
     expect(s.costUsd).toBe(0.02);
+    expect(s.lines[0]).toMatch(/^Paper: T — A \(2017\)/);
     expect(s.lines.some((l) => l.includes("boom"))).toBe(true);
   });
 });

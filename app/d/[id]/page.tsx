@@ -17,7 +17,7 @@ export default async function SharedDossier({ params }: { params: Promise<{ id: 
       <p className="note">
         A saved dossier. <Link href="/">Build your own →</Link>
       </p>
-      <DossierView mode={d.mode} parsed={d.parsed} steps={d.steps} summary={d.summary} createdAt={d.createdAt} shareUrl={base ? `${base}/d/${d.id}` : null} done />
+      <DossierView mode={d.mode} parsed={d.parsed} source={d.source ?? null} steps={d.steps} summary={d.summary} createdAt={d.createdAt} shareUrl={base ? `${base}/d/${d.id}` : null} done />
     </>
   );
 }

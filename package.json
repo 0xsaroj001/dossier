@@ -14,7 +14,8 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "preflight": "tsx scripts/preflight.ts",
-    "live": "tsx scripts/live.ts"
+    "live": "tsx scripts/live.ts",
+    "ask": "tsx scripts/ask.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.4",

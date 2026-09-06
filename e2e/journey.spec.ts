@@ -30,7 +30,7 @@ test("a research query plans eight questions over seven intents", async ({ reque
   expect(j.ok).toBe(true);
   expect(j.parsed.url).toBe("https://arxiv.org/abs/1706.03762");
   expect(j.parsed.language.name).toBe("Hindi");
-  expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["read", "abstract", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
+  expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["extract", "summary", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
   expect(j.steps.find((s: { id: string }) => s.id === "provenance").accept).toContain("ACADEMIC_SEARCH");
 });
 
@@ -40,6 +40,15 @@ test("a news query plans headlines, search, briefing and translation", async ({ 
   expect(j.ok).toBe(true);
   expect(j.parsed).toMatchObject({ topic: "AI regulation", region: "India", category: "technology" });
   expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["headlines", "search", "brief", "translate"]);
+});
+
+test("the page's own metadata is read for free", async ({ request }) => {
+  const res = await request.post("/api/source", { data: { url: "https://arxiv.org/abs/1706.03762" } });
+  const j = await res.json();
+  expect(j.ok).toBe(true);
+  expect(j.source.title).toBe("Attention Is All You Need");
+  expect(j.source.authors[0]).toMatch(/Vaswani/);
+  expect(j.source.abstract).toMatch(/attention mechanisms/);
 });
 
 test("bad input is refused for free", async ({ request }) => {

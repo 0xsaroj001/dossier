@@ -5,9 +5,10 @@ dotenv.config();
 import { config, paidWorkEnabled } from "../lib/config";
 import { parseQuery, validateParsed } from "../lib/parse";
 import { buildPlan, runStep, summarize, type Context } from "../lib/pipeline";
+import { fetchSource } from "../lib/source";
 import { getStore } from "../lib/store";
 import { payerAddress } from "../lib/telegraph";
-import type { Mode, StepResult } from "../lib/types";
+import type { Mode, SourceRecord, StepResult } from "../lib/types";
 
 /**
  * PAID. One real dossier from the command line, printing every receipt. Run this once after
@@ -37,6 +38,16 @@ async function main() {
   const ctx = { store, visitor: "live-script", mode };
   const context: Context = {};
   const results: StepResult[] = [];
+  let source: SourceRecord | null = null;
+  if (mode === "research" && parsed.url) {
+    const s = await fetchSource(parsed.url);
+    if ("error" in s) console.log(`source      FREE  ${s.error}`);
+    else {
+      source = s;
+      context.source = s;
+      console.log(`source      FREE  “${s.title}” · ${s.authors.slice(0, 3).join(", ")}${s.authors.length > 3 ? " et al." : ""} · ${s.year ?? "?"} · abstract ${s.abstract?.length ?? 0} chars (page metadata, not a Telegraph call)`);
+    }
+  }
   for (const spec of plan) {
     const t0 = Date.now();
     process.stdout.write(`- ${spec.id.padEnd(11)} ${spec.intent.padEnd(21)} `);
@@ -52,7 +63,7 @@ async function main() {
     for (const a of r.attempts) if (a.outcome !== "ok") console.log(`    · ${a.minerSlug}: ${a.outcome}${a.note ? ` — ${a.note}` : ""}`);
     if (rc && rc.answer) console.log(`    ${rc.answer.replace(/\s+/g, " ").slice(0, 220)}`);
   }
-  const s = summarize(parsed, results);
+  const s = summarize(parsed, results, source);
   console.log(`\n${s.okSteps}/${plan.length} steps answered · ${s.calls} calls · $${s.costUsd.toFixed(2)} · intents: ${s.intents.join(", ")}`);
   for (const l of s.lines) console.log(`  ${l}`);
   process.exit(s.okSteps >= Math.ceil(plan.length / 2) ? 0 : 1);

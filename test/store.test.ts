@@ -10,12 +10,12 @@ const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
   day: new Date().toISOString().slice(0, 10),
   visitor: "v1",
   mode: "research",
-  step: "read",
+  step: "extract",
   intent: "CONTENT_EXTRACTION",
   routerIntent: "CONTENT_EXTRACTION",
-  minerSlug: "netwire-content-extraction",
-  minerId: "7335",
-  minerRank: 2,
+  minerSlug: "livecert",
+  minerId: "4433",
+  minerRank: 1,
   endpoint: "/extract",
   status: "ok",
   confidence: 0.95,
@@ -50,7 +50,7 @@ describe("memory store", () => {
 
   it("saves and lists dossiers", async () => {
     const s = getStore();
-    const d: Dossier = { id: "abc123", mode: "news", query: "q", parsed: { mode: "news", query: "q", url: null, topic: "q", language: null, region: null, category: null }, createdAt: "2026-09-06T05:00:00.000Z", steps: [], summary: { calls: 0, okSteps: 0, costUsd: 0, intents: [], miners: [], lines: [] } };
+    const d: Dossier = { id: "abc123", mode: "news", query: "q", parsed: { mode: "news", query: "q", url: null, topic: "q", language: null, region: null, category: null }, createdAt: "2026-09-06T05:00:00.000Z", source: null, steps: [], summary: { calls: 0, okSteps: 0, costUsd: 0, intents: [], miners: [], lines: [] } };
     await s.saveDossier(d);
     expect((await s.getDossier("abc123"))?.query).toBe("q");
     expect((await s.recentDossiers(5)).map((x) => x.id)).toEqual(["abc123"]);

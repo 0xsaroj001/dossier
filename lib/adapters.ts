@@ -133,12 +133,16 @@ const CONTENT_EXTRACTION: Record<string, Reader> = {
     };
   },
   livecert: (result) => {
-    // An inline-text extractor: it fetches nothing, so a link question comes back as fields pulled from the question itself.
+    // A structured extractor for inline text: dates, events, contacts, quantities, entities.
     const r = rec(result);
     const extracted = rec(r["extracted"]);
-    const title = str(extracted["title"]);
-    if (!title) return { unusable: "this extractor reads inline text and did not fetch the link." };
-    return { label: str(r["verdict"]), confidence: toConfidence(r["confidence"]), answer: str(r["reason"]) ?? title, data: { title, authors: [], abstract: null, date: null, year: null, excerpt: null, charCount: null } };
+    const facts: string[] = [];
+    for (const [k, v] of Object.entries(extracted)) {
+      if (Array.isArray(v)) for (const item of v) facts.push(`${k}: ${typeof item === "string" ? item : JSON.stringify(item)}`);
+      else if (v !== null && v !== undefined && v !== "") facts.push(`${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+    }
+    if (!Object.keys(extracted).length && !str(r["reason"])) return { unusable: "nothing structured came back." };
+    return { label: str(r["verdict"]), confidence: toConfidence(r["confidence"]), answer: facts.length ? `${str(r["reason"]) ?? ""}\n${facts.join("\n")}`.trim() : (str(r["reason"]) ?? "No structured values."), data: { extracted, facts } };
   },
 };
 
@@ -338,6 +342,10 @@ export function fallbackData(stepId: string, answer: string, parsedData: unknown
       return { items: arr(d["items"]), answer };
     case "related":
       return { papers: arr(d["papers"]).length ? d["papers"] : titlesFromProse(answer), answer };
+    case "summary":
+      return { text: str(d["text"]) ?? answer };
+    case "extract":
+      return { extracted: d["extracted"] ?? null, facts: arr(d["facts"]), answer };
     default:
       return Object.keys(d).length ? d : { answer };
   }

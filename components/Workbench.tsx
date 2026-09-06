@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import DossierView, { type StepView } from "./DossierView";
 import { LANGUAGES } from "@/lib/languages";
-import type { DossierSummary, Mode, ParsedQuery, StepId, StepResult } from "@/lib/types";
+import type { DossierSummary, Mode, ParsedQuery, SourceRecord, StepId, StepResult } from "@/lib/types";
 
 interface PlanStep {
   id: StepId;
@@ -37,6 +37,8 @@ export default function Workbench() {
   const [steps, setSteps] = useState<StepView[]>([]);
   const [summary, setSummary] = useState<DossierSummary | null>(null);
   const [share, setShare] = useState<string | null>(null);
+  const [source, setSource] = useState<SourceRecord | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [allowance, setAllowance] = useState<{ budgetLeft: number; visitorLeft: number } | null>(null);
   const runId = useRef(0);
@@ -70,6 +72,8 @@ export default function Workbench() {
     setDone(false);
     setSteps([]);
     setParsed(null);
+    setSource(null);
+    setSourceError(null);
     try {
       const planRes = await fetch("/api/plan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode, query: q, language: language || null }) });
       const plan = (await planRes.json()) as { ok: boolean; error?: string; parsed?: ParsedQuery; steps?: PlanStep[] };
@@ -78,8 +82,22 @@ export default function Workbench() {
       setParsed(plan.parsed);
       const views: StepView[] = plan.steps.map((s) => ({ id: s.id, title: s.title, intent: s.intent, status: "skipped", receipt: null, data: null, error: null, attempts: [], state: "pending" }));
       setSteps(views);
-      const context: Partial<Record<StepId, unknown>> = {};
+      const context: Partial<Record<StepId | "source", unknown>> = {};
       const results: StepResult[] = [];
+      let src: SourceRecord | null = null;
+      if (mode === "research" && plan.parsed.url) {
+        // Free and not a Telegraph call: the page's own metadata, which every paid question then works on.
+        const res = await fetch("/api/source", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: plan.parsed.url }) });
+        const body = (await res.json().catch(() => null)) as { ok: boolean; error?: string; source?: SourceRecord } | null;
+        if (runId.current !== my) return;
+        if (body?.ok && body.source) {
+          src = body.source;
+          context.source = src;
+          setSource(src);
+        } else {
+          setSourceError(body?.error ?? "The page could not be read.");
+        }
+      }
       for (let i = 0; i < plan.steps.length; i += 1) {
         const spec = plan.steps[i]!;
         setSteps((prev) => prev.map((s, j) => (j === i ? { ...s, state: "running" } : s)));
@@ -102,7 +120,7 @@ export default function Workbench() {
         if (result.status === "ok") context[spec.id] = result.data;
         setSteps((prev) => prev.map((s, j) => (j === i ? { ...result, state: undefined } : s)));
       }
-      const save = await fetch("/api/dossier", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ parsed: plan.parsed, steps: results }) });
+      const save = await fetch("/api/dossier", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ parsed: plan.parsed, source: src, steps: results }) });
       const saved = (await save.json()) as { ok: boolean; id?: string; url?: string; error?: string };
       if (runId.current !== my) return;
       if (saved.ok && saved.url) setShare(saved.url);
@@ -178,11 +196,11 @@ export default function Workbench() {
       </div>
       <p className="note" style={{ marginTop: 10 }}>
         {mode === "research"
-          ? "Eight questions, seven intents: the page, the abstract, AI-text detection, fraud record, fact-check, provenance, related work, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."
+          ? "Dossier reads the page's own metadata for free, then puts eight questions to Telegraph's router across seven intents: key facts, a plain-words summary, AI-text detection, fraud record, fact-check, provenance, related work, translation. The router picks the intent and the miner; each question shows its receipt."
           : "Three to four questions, four intents: headlines, recent coverage, a written briefing, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."}
       </p>
       {error && <p className="error">{error}</p>}
-      {parsed && <DossierView mode={mode} parsed={parsed} steps={steps} summary={summary} shareUrl={share} done={done} />}
+      {parsed && <DossierView mode={mode} parsed={parsed} source={source} sourceError={sourceError} steps={steps} summary={summary} shareUrl={share} done={done} />}
     </div>
   );
 }

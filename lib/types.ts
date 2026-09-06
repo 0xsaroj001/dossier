@@ -12,7 +12,7 @@ export type Intent =
   | "NEWS_SEARCH"
   | "CHAT_COMPLETION";
 
-export type StepId = "read" | "abstract" | "authorship" | "fraud" | "fact" | "provenance" | "related" | "translate" | "headlines" | "search" | "brief";
+export type StepId = "extract" | "summary" | "authorship" | "fraud" | "fact" | "provenance" | "related" | "translate" | "headlines" | "search" | "brief";
 
 export interface Language {
   name: string;
@@ -100,12 +100,24 @@ export interface DossierSummary {
   lines: string[];
 }
 
+export interface SourceRecord {
+  url: string;
+  title: string | null;
+  authors: string[];
+  abstract: string | null;
+  date: string | null;
+  year: string | null;
+  site: string | null;
+}
+
 export interface Dossier {
   id: string;
   mode: Mode;
   query: string;
   parsed: ParsedQuery;
   createdAt: string;
+  /** The page's own metadata, read by the app for free (research mode). Not a Telegraph call. */
+  source: SourceRecord | null;
   steps: StepResult[];
   summary: DossierSummary;
 }

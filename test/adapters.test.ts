@@ -17,8 +17,11 @@ describe("content extraction readers", () => {
     expect(READERS.CONTENT_EXTRACTION!["microlink-url-extraction"]!({ status: "fail" }, {}).unusable).toBeTruthy();
   });
 
-  it("livecert: an inline extractor handed a link is unusable", () => {
-    expect(READERS.CONTENT_EXTRACTION!.livecert!({ verdict: "date_event", extracted: { dates: [], events: [] }, confidence: 1, reason: "No date or event was found." }, {}).unusable).toMatch(/inline text/);
+  it("livecert: structured fields become a flat list of facts", () => {
+    const p = READERS.CONTENT_EXTRACTION!.livecert!({ verdict: "date_event", extracted: { dates: ["12 June 2017"], events: [], places: ["Google"] }, confidence: 1, reason: "One date and one place were found." }, {});
+    expect(p.data).toMatchObject({ facts: ["dates: 12 June 2017", "places: Google"] });
+    expect(p.answer).toMatch(/^One date and one place were found\.\ndates: 12 June 2017/);
+    expect(READERS.CONTENT_EXTRACTION!.livecert!({}, {}).unusable).toBeTruthy();
   });
 });
 

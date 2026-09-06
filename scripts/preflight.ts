@@ -13,8 +13,7 @@ import { BASE_SEPOLIA, fetchChallenge, leaderboard, payerAddress, payerUsdcBalan
  * and who leads the leaderboard for the intent it is written for. Spends nothing.
  */
 const SAMPLE_CONTEXT: Context = {
-  read: { title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: null, date: "12 Jun 2017", year: "2017", excerpt: null },
-  abstract: { title: "Attention Is All You Need", authors: [], abstract: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. ".repeat(3), date: null, year: null, excerpt: null },
+  source: { url: "https://arxiv.org/abs/1706.03762", title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. ".repeat(3), date: "2017-06-12", year: "2017", site: "arxiv.org" },
   headlines: { items: [{ title: "Sample headline", source: "Sample", url: null, published: null, description: null }] },
   search: { articles: [{ title: "Sample article", source: "Sample", url: null, published: null, description: "d" }], answer: null },
   brief: { text: "Sample briefing text." },

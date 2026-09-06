@@ -1,11 +1,13 @@
 import type { Article } from "@/lib/adapters";
-import type { DossierSummary, Mode, ParsedQuery, Receipt, StepResult } from "@/lib/types";
+import type { DossierSummary, Mode, ParsedQuery, Receipt, SourceRecord, StepResult } from "@/lib/types";
 
 export type StepView = StepResult & { state?: "pending" | "running" };
 
 export interface DossierViewProps {
   mode: Mode;
   parsed: ParsedQuery;
+  source?: SourceRecord | null;
+  sourceError?: string | null;
   steps: StepView[];
   summary: DossierSummary | null;
   createdAt?: string;
@@ -169,30 +171,30 @@ function StepCard({ s, n }: { s: StepView; n: number }) {
   );
 }
 
-function ResearchFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQuery }) {
+function ResearchFront({ steps, parsed, source, sourceError }: { steps: StepView[]; parsed: ParsedQuery; source: SourceRecord | null; sourceError: string | null }) {
   const by = (id: string) => steps.find((s) => s.id === id);
-  const read = rec(by("read")?.data);
-  const abs = rec(by("abstract")?.data);
-  const title = str(read["title"]) ?? str(abs["title"]);
-  const readAuthors = Array.isArray(read["authors"]) ? (read["authors"] as string[]) : [];
-  const authors = readAuthors.length ? readAuthors : Array.isArray(abs["authors"]) ? (abs["authors"] as string[]) : [];
-  const abstract = str(abs["abstract"]) ?? str(read["abstract"]);
-  const year = str(read["year"]) ?? str(abs["year"]);
+  const title = source?.title ?? null;
+  const authors = source?.authors ?? [];
+  const abstract = source?.abstract ?? null;
+  const year = source?.year ?? null;
   const au = by("authorship");
   const fr = by("fraud");
   const fc = by("fact");
   const pv = by("provenance");
   const rl = by("related");
   const tr = by("translate");
+  const su = by("summary");
+  const ex = by("extract");
   const found = rec(pv?.data)["found"];
   const papers = Array.isArray(rec(rl?.data)["papers"]) ? (rec(rl?.data)["papers"] as string[]) : [];
+  const facts = Array.isArray(rec(ex?.data)["facts"]) ? (rec(ex?.data)["facts"] as string[]) : [];
+  const summary = str(rec(su?.data)["text"]);
   const translation = str(rec(tr?.data)["translation"]);
-  if (!title && !abstract && !au && !tr) return null;
   return (
     <div className="front two">
       <div className="card">
         <div className="kicker">The paper</div>
-        <h3>{title ?? "Title not extracted yet"}</h3>
+        <h3>{title ?? (sourceError ? "The page could not be read" : "Reading the page…")}</h3>
         {(authors.length > 0 || year) && (
           <p className="src">
             {authors.slice(0, 6).join(", ")}
@@ -200,7 +202,26 @@ function ResearchFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQue
             {year ? ` · ${year}` : ""}
           </p>
         )}
-        {abstract && <p className="abstract">{abstract}</p>}
+        {sourceError && <p className="error">{sourceError}</p>}
+        {summary && (
+          <>
+            <div className="kicker">In plain words</div>
+            <p className="brief">{summary}</p>
+          </>
+        )}
+        {abstract && (
+          <>
+            <div className="kicker" style={{ marginTop: summary ? 14 : 0 }}>
+              Abstract
+            </div>
+            <p className="abstract">{abstract}</p>
+          </>
+        )}
+        {source && (
+          <p className="note">
+            Title, authors, date and abstract were read from the page&apos;s own metadata tags by Dossier, free; that is the input every paid question below works on.
+          </p>
+        )}
         {translation && (
           <>
             <div className="kicker" style={{ marginTop: 14 }}>
@@ -240,6 +261,18 @@ function ResearchFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQue
             <div className="m">{pv?.receipt ? `routed as ${pv.receipt.routerIntent ?? pv.receipt.intent} · ${pv.receipt.minerSlug}` : pv?.status === "skipped" ? "skipped" : ""}</div>
           </div>
         </div>
+        {facts.length > 0 && (
+          <>
+            <div className="kicker" style={{ marginTop: 14 }}>
+              Key facts extracted
+            </div>
+            <ul className="plain">
+              {facts.slice(0, 8).map((f, i) => (
+                <li key={i}>{f}</li>
+              ))}
+            </ul>
+          </>
+        )}
         {papers.length > 0 && (
           <>
             <div className="kicker" style={{ marginTop: 14 }}>
@@ -326,7 +359,7 @@ function NewsFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQuery }
   );
 }
 
-export default function DossierView({ mode, parsed, steps, summary, createdAt, shareUrl, done }: DossierViewProps) {
+export default function DossierView({ mode, parsed, source = null, sourceError = null, steps, summary, createdAt, shareUrl, done }: DossierViewProps) {
   return (
     <div className="dossier">
       <div className="dossier-head">
@@ -343,7 +376,7 @@ export default function DossierView({ mode, parsed, steps, summary, createdAt, s
           {parsed.language && <span className="chip">→ {parsed.language.name}</span>}
         </div>
       </div>
-      {mode === "research" ? <ResearchFront steps={steps} parsed={parsed} /> : <NewsFront steps={steps} parsed={parsed} />}
+      {mode === "research" ? <ResearchFront steps={steps} parsed={parsed} source={source} sourceError={sourceError} /> : <NewsFront steps={steps} parsed={parsed} />}
       {summary && done && (
         <div className="card" style={{ marginTop: 16 }}>
           <div className="kicker">Case summary</div>
