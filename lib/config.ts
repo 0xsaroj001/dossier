@@ -74,9 +74,20 @@ export function resetConfigForTests(): void {
   problems = [];
 }
 
+/**
+ * Upstash REST credentials under any name: the explicit UPSTASH_* pair, Vercel's KV_* pair, or
+ * whatever prefix the Vercel Storage dialog was given (STORAGE_REST_API_URL, …).
+ */
 export function redisCredentials(c: Config = config()): { url: string; token: string } | null {
-  const url = c.UPSTASH_REDIS_REST_URL ?? c.KV_REST_API_URL;
-  const token = c.UPSTASH_REDIS_REST_TOKEN ?? c.KV_REST_API_TOKEN;
+  let url = c.UPSTASH_REDIS_REST_URL ?? c.KV_REST_API_URL;
+  let token = c.UPSTASH_REDIS_REST_TOKEN ?? c.KV_REST_API_TOKEN;
+  if (!url || !token) {
+    for (const [k, v] of Object.entries(process.env)) {
+      if (!v) continue;
+      if (/_REST_API_URL$/.test(k) && !url) url = v;
+      if (/_REST_API_TOKEN$/.test(k) && !/READ_ONLY/.test(k) && !token) token = v;
+    }
+  }
   return url && token ? { url, token } : null;
 }
 
