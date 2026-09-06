@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.*
+!.env.example
+.vercel/
+playwright-report/
+test-results/
+*.log
+.DS_Store
+Thumbs.db
+tsconfig.tsbuildinfo
+next-env.d.ts

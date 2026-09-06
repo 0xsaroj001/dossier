@@ -1,0 +1,40 @@
+{
+  "name": "dossier",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ask once, get a case file. Multi-intent research and news dossiers assembled from Telegraph miners, with a receipt for every call.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "preflight": "tsx scripts/preflight.ts",
+    "live": "tsx scripts/live.ts"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.38.4",
+    "@x402/core": "2.24.0",
+    "@x402/evm": "2.24.0",
+    "@x402/fetch": "2.24.0",
+    "next": "15.5.25",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "viem": "^2.56.3",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
+  }
+}
