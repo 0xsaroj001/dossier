@@ -4,12 +4,6 @@ Read before trusting a claim. Newest first within each state.
 
 ## Open
 
-### G1b · The deployment cannot pay until the operator adds the key and Redis
-<https://dossier-wukong4.vercel.app> is live with the budget, caps and salt set. `PAYER_PRIVATE_KEY`
-must be added by the operator (`vercel env add PAYER_PRIVATE_KEY production`, or the dashboard)
-and Upstash Redis connected from the Storage tab, then redeploy. Until then `/api/health` says
-`payerConfigured: false` and `store: "memory"`.
-
 ### G2 · What `context` does to the miner's parameters is not pinned down
 The docs say it is "merged into the routed request body". Whether it overrides or yields to the
 parameters the router fills from the question is unknown, and whether a strict miner rejects an
@@ -74,19 +68,23 @@ The AI-text and translation questions carry up to 4,000 characters of passage. W
 classifier still files them correctly, and whether it truncates what it copies into the miner's
 `text`, can only be seen with paid traffic. `context` carries the exact passage as a hedge.
 
-### G15 · Network-wide settlement outage, 2026-09-06 from 09:18 UTC
-Every payment from any wallet has been refused with `insufficient_credits: facilitator returned
-403` since the last settlement to the collector at 09:17:50 UTC (read from Blockscout at 11:05).
-Dossier's own probe from the operator's machine and the paid journey on production both hit it.
-Nothing in the app can fix it; every step shows the node's message and that nothing was
-charged. Re-run `npm run ask -- "test"` to see when it clears.
-
-### G16 · Without Redis, production instances do not share memory
-Vercel runs several instances; a ledger row written by one is invisible to another. Production
-showed `calls: 0` beside `dossiers: 2` for exactly this reason. Connect Upstash Redis before
-sharing the link.
+### G15 · The node's facilitator credits are exhausted, 2026-09-06 from ~09:18 UTC
+Payments are refused with `insufficient_credits: facilitator returned 403`. PayAI's own docs:
+one credit is one settled request, and when a merchant's balance hits zero `/settle` returns
+`insufficient_credits`. The merchant is the Telegraph node (payTo is its collector), so this is
+the network's account, not the payer's: our wallet holds 54 USDC and settled about 50 calls
+until 07:30:42 UTC; the collector received three payments at 11:30 and nothing else since 09:17
+(Blockscout, read 11:45). Nothing in the app can fix it; every step shows the node's message and
+that nothing was charged. Reported to the organisers; re-run `npm run ask -- "test"` to see when
+it clears.
 
 ## Closed
+
+### G1b · Deployment configured — CLOSED 2026-09-06 11:40 UTC
+Payer key set, Upstash Redis connected (`store: "redis"`), budget 400, caps, salt and public URL
+set; the free judge journey passes on production and 28 rows persisted across instances.
+
+### G16 · Memory store split across instances — CLOSED by G1b
 
 ### G1 · The paid path — CLOSED 2026-09-06 ~09:40 UTC, paying locally
 Payer `0xFEc66E0F5c64296fF190EdCeD88C781eeEdFd9d3`. First routed calls settled at $0.01 each (for
