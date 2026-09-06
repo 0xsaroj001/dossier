@@ -62,6 +62,20 @@ describe("news readers", () => {
   });
 });
 
+describe("safety readers", () => {
+  it("URLhaus: nothing means not listed", () => {
+    const p = READERS.URL_SCAN!["url-scan-urlhaus"]!("", { url: "https://example.com" });
+    expect(p).toMatchObject({ label: "not listed", data: { listed: false } });
+    expect(READERS.URL_SCAN!["url-scan-urlhaus"]!({ threat: "malware_download", url_status: "online" }, {}).label).toBe("malware_download");
+  });
+  it("sentinel: the verdict is read from the prose", () => {
+    const r = READERS.FRAUD_DETECTION!["telegraph-sentinel"]!;
+    expect(r({ answer: "It is a phishing/scam message. The warning signs are…", label: "ANSWERED", confidence: 0.7 }, {})).toMatchObject({ label: "scam likely", confidence: 0.7 });
+    expect(r({ answer: "NOT_APPLICABLE: burn address. Probability 0 (0% risk).", label: "NOT_APPLICABLE" }, {}).label).toBe("not applicable");
+    expect(r({ answer: "This looks legitimate; no warning signs.", label: "ANSWERED" }, {}).label).toBe("looks legitimate");
+  });
+});
+
 describe("lookup and fallbacks", () => {
   it("finds a reader by the routed intent and miner, and none otherwise", () => {
     expect(readerFor("FACT_CHECK", "qarinah-proofpack")).toBe(READERS.FACT_CHECK!["qarinah-proofpack"]);

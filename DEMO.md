@@ -122,6 +122,17 @@ npm run dev
 9. Switch to **News topic**, click *What's the latest on AI regulation in India, in Hindi*,
    **Brief me**. Four steps; the briefing card fills last, then its Hindi translation.
 
+10. Switch to **Is this safe?**, click the first example (a fake bank "KYC" message with a link),
+    **Check it**. Up to five checks; the verdict card turns to **Caution** or **No red flags**
+    once the labels are in, with each check's miner and routed intent under it.
+
+```bash
+npm run live -- safety "Your SBI account will be blocked today, verify at http://sbi-kyc-update.xyz now"
+```
+
+Expected: `scan`, `cert`, `where`, `scam`, `redflags` answered through the router, and a verdict
+line such as `Caution: 2 of 5 checks raised a red flag (Link scan, Red flags in the message).`
+
 ## 4. Judge journey, automated
 
 ```bash

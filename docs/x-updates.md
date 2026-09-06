@@ -35,6 +35,14 @@ brackets from `/ledger` at posting time; never round a number up. One live dossi
 > [/d/… link with a second-phrasing step]
 > Ledger: [ledger URL] · Source: github.com/0xsaroj001/dossier
 
+## 4 — Is this safe? (once a real scam message has been checked)
+
+> New in Dossier: paste the message your uncle forwarded. Five @Telegraphprotoc questions,
+> five miners: link scan, certificate, where the host really is, fraud record, red flags in
+> the text. Verdict from the miners' own labels, receipts on every line.
+>
+> [/d/… link of a Caution verdict] · [deployment URL]
+
 ## Replies worth having ready
 
 - "Is the money real?" — Testnet USDC on Base Sepolia. The answers and the miners are real; the

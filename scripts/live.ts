@@ -19,8 +19,8 @@ import type { Mode, SourceRecord, StepResult } from "../lib/types";
  */
 async function main() {
   const [modeArg, ...rest] = process.argv.slice(2);
-  const mode = (modeArg === "news" ? "news" : "research") as Mode;
-  const query = rest.join(" ").trim() || (mode === "news" ? "AI regulation in India, in Hindi" : "https://arxiv.org/abs/1706.03762 in Hindi");
+  const mode = (modeArg === "news" ? "news" : modeArg === "safety" ? "safety" : "research") as Mode;
+  const query = rest.join(" ").trim() || (mode === "news" ? "AI regulation in India, in Hindi" : mode === "safety" ? "Your account will be suspended today. Verify now at https://example.com/verify" : "https://arxiv.org/abs/1706.03762 in Hindi");
   const c = config();
   if (!paidWorkEnabled(c)) {
     console.error("Paid work is off: set PAYER_PRIVATE_KEY and DAILY_CALL_BUDGET > 0 in .env.local, and PAUSED=false.");

@@ -43,6 +43,13 @@ Left for the operator:
 3. `BASE_URL=https://dossier-wukong4.vercel.app E2E_PAID=1 npm run e2e` → 9 passed.
 4. Re-check the Track 3 tab at submissions.telegraphprotocol.com and fill the form.
 
+## Phase 3b — "Is this safe?", 2026-09-06 12:00–12:40 UTC — done
+
+Third mode on the operator's go: link scan, certificate, host location, fraud record, red flags
+in the message; four more intents (URL_SCAN, SSL_VERIFICATION, IP_GEOLOCATION,
+TEXT_CLASSIFICATION), fourteen in all. Verdict computed from the miners' labels. 61 unit
+tests, journey 9/9 free.
+
 ## Phase 4 — Distribution, until the deadline
 
 - Three X updates from docs/x-updates.md with real dossier links and ledger numbers, each tagged

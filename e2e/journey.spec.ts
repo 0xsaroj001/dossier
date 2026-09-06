@@ -42,6 +42,16 @@ test("a news query plans headlines, search, briefing and translation", async ({ 
   expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["headlines", "search", "brief", "translate"]);
 });
 
+test("a safety query plans the checks its input allows", async ({ request }) => {
+  const full = await (await request.post("/api/plan", { data: { mode: "safety", query: "Your account is blocked, verify at https://example.com/verify and send ETH to 0x000000000000000000000000000000000000dEaD" } })).json();
+  expect(full.ok).toBe(true);
+  expect(full.steps.map((s: { id: string }) => s.id)).toEqual(["scan", "cert", "where", "scam", "redflags"]);
+  const link = await (await request.post("/api/plan", { data: { mode: "safety", query: "https://example.com" } })).json();
+  expect(link.steps.map((s: { id: string }) => s.id)).toEqual(["scan", "cert", "where", "scam"]);
+  const nothing = await request.post("/api/plan", { data: { mode: "safety", query: "hello" } });
+  expect(nothing.status()).toBe(400);
+});
+
 test("the page's own metadata is read for free", async ({ request }) => {
   const res = await request.post("/api/source", { data: { url: "https://arxiv.org/abs/1706.03762" } });
   const j = await res.json();

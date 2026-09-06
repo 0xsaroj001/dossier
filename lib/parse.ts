@@ -102,7 +102,29 @@ export function extractTopic(text: string): string | null {
 
 const REGION_TAIL = /\b(?:in|from|for|across)\s+(?:the\s+)?[A-Za-z.]+(?:\s+[A-Za-z.]+)?\s*[,.]?\s*$/i;
 
+const BARE_HOST_RE = /(?:^|\s)((?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"'`)\]]*)?)(?=[\s.,;:!?)]|$)/i;
+const ADDRESS_RE = /\b0x[0-9a-fA-F]{40}\b|\b[a-z0-9-]+\.eth\b/i;
+
+/** Safety mode: what was pasted. A link with or without a scheme, a wallet, and any prose around them. */
+export function parseSafety(query: string): ParsedQuery {
+  const clean = query.replace(/\s+/g, " ").trim();
+  let url = clean.match(URL_RE)?.[0]?.replace(/[.,;:!?)]+$/, "") ?? null;
+  if (!url) {
+    const bare = clean.match(BARE_HOST_RE)?.[1];
+    if (bare && !/\.(eth|jpg|png|pdf)$/i.test(bare)) url = `https://${bare}`;
+  }
+  const address = clean.match(ADDRESS_RE)?.[0] ?? null;
+  const prose = clean
+    .replace(URL_RE, " ")
+    .replace(ADDRESS_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const message = prose.split(/\s+/).filter(Boolean).length >= 8 ? clean.slice(0, 2000) : null;
+  return { mode: "safety", query: clean, url, topic: null, language: null, region: null, category: null, address, message };
+}
+
 export function parseQuery(mode: Mode, query: string, uiLanguage?: string | null): ParsedQuery {
+  if (mode === "safety") return parseSafety(query);
   const clean = query.replace(/\s+/g, " ").trim();
   const url = clean.match(URL_RE)?.[0]?.replace(/[.,;:]+$/, "") ?? null;
   const { language: spoken, rest } = extractLanguage(clean);
@@ -120,18 +142,27 @@ export function parseQuery(mode: Mode, query: string, uiLanguage?: string | null
   return { mode, query: clean, url, topic, language: finalLanguage, region, category };
 }
 
+function urlProblem(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/^https?:$/.test(u.protocol)) return "Only http(s) links can be checked.";
+    if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|\[::1\])/i.test(u.hostname)) return "That address is not public.";
+    return null;
+  } catch {
+    return "That link does not parse as a URL.";
+  }
+}
+
 export function validateParsed(p: ParsedQuery): string | null {
   if (!p.query) return "Type a question first.";
   if (p.mode === "research") {
     if (!p.url) return "Research mode needs a link to the paper, e.g. https://arxiv.org/abs/1706.03762";
-    try {
-      const u = new URL(p.url);
-      if (!/^https?:$/.test(u.protocol)) return "Only http(s) links can be read.";
-      if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|\[::1\])/i.test(u.hostname)) return "That address is not public.";
-    } catch {
-      return "That link does not parse as a URL.";
-    }
+    return urlProblem(p.url);
   }
   if (p.mode === "news" && !p.topic) return "News mode needs a topic, e.g. AI regulation in India";
+  if (p.mode === "safety") {
+    if (!p.url && !p.address && !p.message) return "Paste a link, a wallet address, or the message you received.";
+    if (p.url) return urlProblem(p.url);
+  }
   return null;
 }

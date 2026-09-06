@@ -20,12 +20,20 @@ const EXAMPLES: Record<Mode, string[]> = {
     "https://arxiv.org/abs/2005.14165 in Spanish",
   ],
   news: ["What's the latest on AI regulation in India, in Hindi", "Top technology headlines in the US", "News about the cricket World Cup in Tamil"],
+  safety: [
+    "Dear customer, your SBI account will be blocked today. Update your KYC now at http://sbi-kyc-update.xyz or call immediately.",
+    "Is https://github.com safe?",
+    "Someone asked me to send USDT to 0x000000000000000000000000000000000000dEaD to unlock a prize",
+  ],
 };
 
 const PLACEHOLDER: Record<Mode, string> = {
   research: "Paste a link to a paper and, if you like, name a language: “Extract the paper at https://arxiv.org/abs/… in Hindi”",
   news: "Name a topic and, if you like, a region and a language: “What's happening with AI regulation in India, in Hindi”",
+  safety: "Paste the link, the wallet address, or the whole message someone sent you.",
 };
+
+const BUTTON: Record<Mode, string> = { research: "Build the dossier", news: "Brief me", safety: "Check it" };
 
 export default function Workbench() {
   const [mode, setMode] = useState<Mode>("research");
@@ -46,7 +54,7 @@ export default function Workbench() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("dossier.mode");
-      if (saved === "news" || saved === "research") setMode(saved);
+      if (saved === "news" || saved === "research" || saved === "safety") setMode(saved);
     } catch {
       /* private mode */
     }
@@ -144,6 +152,9 @@ export default function Workbench() {
         <button type="button" role="tab" aria-pressed={mode === "news"} onClick={() => pick("news")}>
           News topic
         </button>
+        <button type="button" role="tab" aria-pressed={mode === "safety"} onClick={() => pick("safety")}>
+          Is this safe?
+        </button>
       </div>
       <form
         className="ask"
@@ -165,17 +176,21 @@ export default function Workbench() {
           }}
         />
         <div className="row">
-          <label className="note" htmlFor="lang">
-            Translate into
-          </label>
-          <select id="lang" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Target language">
-            <option value="">as written in the query, or not at all</option>
-            {LANGUAGES.filter((l) => l.code !== "en").map((l) => (
-              <option key={l.code} value={l.name}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+          {mode !== "safety" && (
+            <>
+              <label className="note" htmlFor="lang">
+                Translate into
+              </label>
+              <select id="lang" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Target language">
+                <option value="">as written in the query, or not at all</option>
+                {LANGUAGES.filter((l) => l.code !== "en").map((l) => (
+                  <option key={l.code} value={l.name}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <span className="spacer" />
           {allowance && (
             <span className="note">
@@ -183,7 +198,7 @@ export default function Workbench() {
             </span>
           )}
           <button className="btn" type="submit" disabled={busy || !query.trim()}>
-            {busy ? "Assembling…" : mode === "research" ? "Build the dossier" : "Brief me"}
+            {busy ? "Asking…" : BUTTON[mode]}
           </button>
         </div>
       </form>
@@ -197,7 +212,9 @@ export default function Workbench() {
       <p className="note" style={{ marginTop: 10 }}>
         {mode === "research"
           ? "Dossier reads the page's own metadata for free, then puts eight questions to Telegraph's router across seven intents: key facts, a plain-words summary, AI-text detection, fraud record, fact-check, provenance, related work, translation. The router picks the intent and the miner; each question shows its receipt."
-          : "Three to four questions, four intents: headlines, recent coverage, a written briefing, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."}
+          : mode === "news"
+            ? "Three to four questions, four intents: headlines, recent coverage, a written briefing, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."
+            : "Up to five questions, four intents: link scan, certificate, where the host really is, fraud record, red flags in the message. Each goes to Telegraph's router; the verdict is drawn from the miners' own labels, with no extra call. Nothing you paste is stored beyond the receipts."}
       </p>
       {error && <p className="error">{error}</p>}
       {parsed && <DossierView mode={mode} parsed={parsed} source={source} sourceError={sourceError} steps={steps} summary={summary} shareUrl={share} done={done} />}

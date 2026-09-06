@@ -17,6 +17,10 @@ payment settled on Base Sepolia.
   provenance question), `ACADEMIC_SEARCH`, `LANGUAGE_TRANSLATION`.
 - **News mode**, three to four questions over four intents: `NEWS_HEADLINES`, `NEWS_SEARCH`,
   `CHAT_COMPLETION`, `LANGUAGE_TRANSLATION`.
+- **Is this safe?**: paste a link, a wallet address, or the message someone sent you. Up to
+  five questions over four intents: `URL_SCAN`, `SSL_VERIFICATION`, `IP_GEOLOCATION` (the app
+  resolves the host for free, the network says where it is), `FRAUD_DETECTION`,
+  `TEXT_CLASSIFICATION`. The verdict is drawn from the miners' own labels, with no extra call.
 
 One query such as *"Extract the research paper at https://arxiv.org/abs/1706.03762 in Hindi"*
 is the whole interface. The language, region and section are read from the sentence.

@@ -14,6 +14,10 @@ const INTENTS: Array<[string, string]> = [
   ["NEWS_HEADLINES", "the top headlines, region-aware"],
   ["NEWS_SEARCH", "the last week's coverage"],
   ["CHAT_COMPLETION", "writes the briefing from that material and nothing else"],
+  ["URL_SCAN", "phishing, malware and scam lists, for a link someone sent you"],
+  ["SSL_VERIFICATION", "whether the site's certificate is valid and who issued it"],
+  ["IP_GEOLOCATION", "where the host really is and who operates it"],
+  ["TEXT_CLASSIFICATION", "scam, phishing, spam or legitimate, with the tells named"],
 ];
 
 export default function Home() {
@@ -22,7 +26,7 @@ export default function Home() {
     <>
       <h1>Ask once. Get the case file.</h1>
       <p className="lede">
-        Paste a paper or name a news topic. Dossier turns it into a sequence of questions for Telegraph&apos;s router, which picks the intent and the miner for each, and hands you a case file where every line carries the miner that said it, how sure it was, what it cost, and the on-chain receipt.
+        Paste a paper, name a news topic, or drop in a message you are not sure about. Dossier turns it into a sequence of questions for Telegraph&apos;s router, which picks the intent and the miner for each, and hands you a case file where every line carries the miner that said it, how sure it was, what it cost, and the on-chain receipt.
       </p>
       <Workbench />
       <section className="about" id="how">

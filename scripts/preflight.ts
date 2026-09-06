@@ -60,10 +60,14 @@ async function main() {
   }
 
   console.log("\n== the questions, and who leads each intent today (the router chooses; this is who it is likely to choose)");
-  const plans = [parseQuery("research", "https://arxiv.org/abs/1706.03762 in Hindi"), parseQuery("news", "AI regulation in India, in Hindi")];
+  const plans = [
+    parseQuery("research", "https://arxiv.org/abs/1706.03762 in Hindi"),
+    parseQuery("news", "AI regulation in India, in Hindi"),
+    parseQuery("safety", "Congratulations, you won a prize! Claim it at https://example.com/claim and send 0.1 ETH to 0x000000000000000000000000000000000000dEaD to release it."),
+  ];
   for (const parsed of plans) {
     for (const s of buildPlan(parsed)) {
-      const d = deriveInput(s, parsed, SAMPLE_CONTEXT);
+      const d = await deriveInput(s, parsed, SAMPLE_CONTEXT);
       const q = "skip" in d ? `(skipped: ${d.skip})` : d.queries[0].replace(/\s+/g, " ").slice(0, 110) + (d.queries[0].length > 110 ? "…" : "");
       let lead = "";
       try {

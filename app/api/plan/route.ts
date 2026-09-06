@@ -7,8 +7,8 @@ import { buildPlan } from "@/lib/pipeline";
 export const dynamic = "force-dynamic";
 
 const body = z.object({
-  mode: z.enum(["research", "news"]),
-  query: z.string().min(1).max(1000),
+  mode: z.enum(["research", "news", "safety"]),
+  query: z.string().min(1).max(2000),
   language: z.string().max(40).nullable().optional(),
 });
 

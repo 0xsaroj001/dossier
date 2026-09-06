@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const body = z.object({
-  mode: z.enum(["research", "news"]),
+  mode: z.enum(["research", "news", "safety"]),
   stepId: z.string().max(20),
   parsed: z.unknown(),
   context: z.record(z.string(), z.unknown()).optional(),

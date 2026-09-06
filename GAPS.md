@@ -78,6 +78,20 @@ until 07:30:42 UTC; the collector received three payments at 11:30 and nothing e
 that nothing was charged. Worth reporting in the hackathon Discord; re-run `npm run ask -- "test"` to see when
 it clears.
 
+### G17 · The message check is answered by fraud miners, not classifiers
+The TEXT_CLASSIFICATION wording timed out through the router twice (48 s, no miner named). The
+plain-words wording is filed under FRAUD_DETECTION and telegraph-sentinel answers in under a
+second with a clear verdict, so that phrasing goes first and FRAUD_DETECTION is accepted for
+the step. The step is still labelled TEXT_CLASSIFICATION; the receipt shows what the router
+chose. URL_SCAN went to the #10-ranked URLhaus miner on every ask (three runs); its empty answer
+means "not listed" and is read as such.
+
+### G18 · The safety verdict is a heuristic over prose
+Sentence-level and negation-aware, with an explicit "% risk" figure winning. It has been checked
+against the answers seen today (a burn address, a clean URL, a phishing message); a miner that
+phrases danger inside a negation ("not safe") reads as clear. Every check's own words are shown
+beside the verdict so a reader can overrule it.
+
 ## Closed
 
 ### G1b · Deployment configured — CLOSED 2026-09-06 11:40 UTC

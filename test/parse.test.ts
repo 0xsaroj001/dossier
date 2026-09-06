@@ -60,6 +60,26 @@ describe("parseQuery, news", () => {
   });
 });
 
+describe("parseQuery, safety", () => {
+  it("finds the link, the wallet and the message in a scam text", () => {
+    const p = parseQuery("safety", "Dear customer, your account will be blocked today. Verify at http://sbi-kyc-update.xyz/login and send 0.1 ETH to 0x000000000000000000000000000000000000dEaD");
+    expect(p.url).toBe("http://sbi-kyc-update.xyz/login");
+    expect(p.address).toBe("0x000000000000000000000000000000000000dEaD");
+    expect(p.message).toMatch(/^Dear customer/);
+    expect(validateParsed(p)).toBeNull();
+  });
+  it("accepts a bare domain and a lone question", () => {
+    expect(parseQuery("safety", "Is github.com safe?").url).toBe("https://github.com");
+    const lone = parseQuery("safety", "https://example.com");
+    expect(lone.message).toBeNull();
+    expect(validateParsed(lone)).toBeNull();
+  });
+  it("needs something to check and refuses private hosts", () => {
+    expect(validateParsed(parseQuery("safety", "hello"))).toMatch(/Paste a link/);
+    expect(validateParsed(parseQuery("safety", "http://192.168.1.1/admin"))).toMatch(/not public/);
+  });
+});
+
 describe("helpers", () => {
   it("extracts the last language mention", () => {
     expect(extractLanguage("translate to french").language?.name).toBe("French");

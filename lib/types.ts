@@ -1,4 +1,4 @@
-export type Mode = "research" | "news";
+export type Mode = "research" | "news" | "safety";
 
 export type Intent =
   | "CONTENT_EXTRACTION"
@@ -10,9 +10,29 @@ export type Intent =
   | "LANGUAGE_TRANSLATION"
   | "NEWS_HEADLINES"
   | "NEWS_SEARCH"
-  | "CHAT_COMPLETION";
+  | "CHAT_COMPLETION"
+  | "URL_SCAN"
+  | "SSL_VERIFICATION"
+  | "IP_GEOLOCATION"
+  | "TEXT_CLASSIFICATION";
 
-export type StepId = "extract" | "summary" | "authorship" | "fraud" | "fact" | "provenance" | "related" | "translate" | "headlines" | "search" | "brief";
+export type StepId =
+  | "extract"
+  | "summary"
+  | "authorship"
+  | "fraud"
+  | "fact"
+  | "provenance"
+  | "related"
+  | "translate"
+  | "headlines"
+  | "search"
+  | "brief"
+  | "scan"
+  | "cert"
+  | "where"
+  | "scam"
+  | "redflags";
 
 export interface Language {
   name: string;
@@ -27,6 +47,10 @@ export interface ParsedQuery {
   language: Language | null;
   region: string | null;
   category: string | null;
+  /** Safety mode: an EVM address or ENS name found in the text. */
+  address?: string | null;
+  /** Safety mode: the pasted message itself, when there is prose to classify. */
+  message?: string | null;
 }
 
 export interface StepSpec {
@@ -41,6 +65,8 @@ export interface StepSpec {
   needs: StepId[];
   /** Only planned when the query asks for it (a target language). */
   optional?: boolean;
+  /** Only planned when the parsed query has what the step needs. */
+  when?: (p: ParsedQuery) => boolean;
   /** What the step does, in one line, for the UI. */
   blurb: string;
 }

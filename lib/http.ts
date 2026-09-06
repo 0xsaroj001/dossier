@@ -23,13 +23,15 @@ export function withVisitor<T>(res: NextResponse<T>, v: Visitor): NextResponse<T
 }
 
 export const parsedSchema = z.object({
-  mode: z.enum(["research", "news"]),
-  query: z.string().min(1).max(1000),
+  mode: z.enum(["research", "news", "safety"]),
+  query: z.string().min(1).max(2000),
   url: z.string().max(2000).nullable(),
   topic: z.string().max(300).nullable(),
   language: z.object({ name: z.string().max(40), code: z.string().max(8) }).nullable(),
   region: z.string().max(60).nullable(),
   category: z.string().max(40).nullable(),
+  address: z.string().max(80).nullable().optional(),
+  message: z.string().max(2000).nullable().optional(),
 });
 
 export function asParsed(v: unknown): ParsedQuery | null {

@@ -107,7 +107,10 @@ allowed; metric inflation is disqualification; updates must be public on X and t
 
 ## Scope
 
-In: the two modes above, the ledger, share links, the verify page, spending guards, the free
-preflight, the paid live script, the judge journey. Out: accounts, wallets for users, agents'
+In: the two modes above plus **Is this safe?** (added 2026-09-06 12:00 UTC on the operator's
+go: a link, wallet or message checked through URL_SCAN, SSL_VERIFICATION, IP_GEOLOCATION,
+FRAUD_DETECTION and TEXT_CLASSIFICATION, verdict from the miners' labels), the ledger, share
+links, the verify page, spending guards, the free preflight, the paid live script, the judge
+journey. Out: accounts, wallets for users, agents'
 API keys, Telegram or MCP surfaces, naming miners, re-ranking miners, automatic second
 opinions, anything that sits between the user and the protocol's own judgement.

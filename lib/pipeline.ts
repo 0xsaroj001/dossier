@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { promises as dns } from "node:dns";
 import { fallbackData, readerFor, titlesFromProse, type Article, type Parsed, type StepInput } from "./adapters";
 import { utcDay } from "./config";
 import { checkAllowance, noteAttempt } from "./guard";
@@ -6,6 +7,7 @@ import { buildReceipt } from "./receipt";
 import type { Store } from "./store";
 import { askRouted, NodeError, payerAddress, rankOf, resolveMiner, type EngineResponse } from "./telegraph";
 import type { Attempt, DossierSummary, LedgerRow, Mode, ParsedQuery, Receipt, StepId, StepResult, StepSpec } from "./types";
+import { safetyVerdict } from "./verdict";
 
 /**
  * One query becomes a fixed sequence of questions. Every question goes to Telegraph's own
@@ -41,12 +43,20 @@ export const NEWS_STEPS: StepSpec[] = [
   { id: "translate", title: "Translate the briefing", intent: "LANGUAGE_TRANSLATION", accept: ["LANGUAGE_TRANSLATION"], strict: true, needs: ["brief"], optional: true, blurb: "The briefing in the language you asked for." },
 ];
 
+export const SAFETY_STEPS: StepSpec[] = [
+  { id: "scan", title: "Link scan", intent: "URL_SCAN", accept: ["URL_SCAN", "FRAUD_DETECTION"], needs: [], when: (p) => Boolean(p.url), blurb: "Phishing, malware and scam lists, for the link you pasted." },
+  { id: "cert", title: "Certificate", intent: "SSL_VERIFICATION", accept: ["SSL_VERIFICATION"], strict: true, needs: [], when: (p) => Boolean(p.url), blurb: "Is the site's certificate valid, and who issued it?" },
+  { id: "where", title: "Where the host really is", intent: "IP_GEOLOCATION", accept: ["IP_GEOLOCATION"], strict: true, needs: [], when: (p) => Boolean(p.url), blurb: "The address the site resolves to, and who operates it." },
+  { id: "scam", title: "Fraud record", intent: "FRAUD_DETECTION", accept: ["FRAUD_DETECTION", "URL_SCAN"], needs: [], when: (p) => Boolean(p.url || p.address || p.message), blurb: "Known scams, drainers and flagged wallets." },
+  { id: "redflags", title: "Red flags in the message", intent: "TEXT_CLASSIFICATION", accept: ["TEXT_CLASSIFICATION", "FRAUD_DETECTION", "CONTENT_MODERATION", "SENTIMENT_ANALYSIS", "CHAT_COMPLETION", "TEXT_GENERATION"], strict: true, needs: [], when: (p) => Boolean(p.message), blurb: "Scam, phishing, spam or legitimate, with the tells named." },
+];
+
 export function specsFor(mode: Mode): StepSpec[] {
-  return mode === "research" ? RESEARCH_STEPS : NEWS_STEPS;
+  return mode === "research" ? RESEARCH_STEPS : mode === "news" ? NEWS_STEPS : SAFETY_STEPS;
 }
 
 export function buildPlan(parsed: ParsedQuery): StepSpec[] {
-  return specsFor(parsed.mode).filter((s) => !s.optional || parsed.language);
+  return specsFor(parsed.mode).filter((s) => (!s.optional || parsed.language) && (!s.when || s.when(parsed)));
 }
 
 /** Data carried between questions: each finished step's data, plus the page's metadata under `source` (research). */
@@ -124,8 +134,30 @@ export interface Derived {
   context?: Record<string, unknown>;
 }
 
-export function deriveInput(spec: StepSpec, parsed: ParsedQuery, context: Context): Derived | { skip: string } {
+function hostOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
+  }
+}
+
+/** Free: the address a hostname resolves to right now, for the geolocation question. */
+export async function resolveHost(host: string): Promise<string | null> {
+  try {
+    const { address } = await dns.lookup(host);
+    return address;
+  } catch {
+    return null;
+  }
+}
+
+export async function deriveInput(spec: StepSpec, parsed: ParsedQuery, context: Context): Promise<Derived | { skip: string }> {
   const meta = metaOf(context);
+  const host = hostOf(parsed.url);
+  const message = parsed.message ?? null;
+  const address = parsed.address ?? null;
   const title = meta.title;
   const authors = meta.authors;
   const year = meta.year;
@@ -268,6 +300,72 @@ export function deriveInput(spec: StepSpec, parsed: ParsedQuery, context: Contex
         },
       };
     }
+    case "scan": {
+      if (!parsed.url) return { skip: "No link to scan." };
+      return {
+        input: { url: parsed.url },
+        queries: [`Is the URL ${parsed.url} safe to visit? Check it for phishing, malware and scams.`, `Scan this link for phishing, malware or scam listings and say whether it is safe or unsafe: ${parsed.url}`],
+      };
+    }
+    case "cert": {
+      if (!host) return { skip: "No host to check." };
+      return {
+        input: { url: parsed.url ?? undefined },
+        queries: [`Is the TLS certificate for ${host} currently valid, and who issued it?`, `Check the SSL certificate of ${host}: valid or expired, issuer, and whether the hostname matches.`],
+      };
+    }
+    case "where": {
+      if (!host) return { skip: "No host to locate." };
+      const ip = await resolveHost(host);
+      if (!ip) return { skip: `${host} does not resolve to any address right now.` };
+      return {
+        input: { text: ip },
+        queries: [`Where is the IP address ${ip} located, and which organisation operates it? It is the address ${host} resolves to.`, `Geolocate the IP address ${ip}: country, city and network operator.`],
+        context: { ip },
+      };
+    }
+    case "scam": {
+      const subject = address ?? host ?? null;
+      if (address) {
+        return {
+          input: { text: address },
+          queries: [`How likely is the wallet ${address} to be involved in fraud, scams, drainers or illicit activity? Give a risk assessment.`, `Is the address ${address} a known scam or fraudulent wallet?`],
+        };
+      }
+      if (host) {
+        return {
+          input: { url: parsed.url ?? undefined },
+          queries: [`Is ${host} a known scam, phishing or fraudulent website? Give a risk assessment.`, `How likely is the site ${host} to be fraudulent?`],
+        };
+      }
+      if (message) {
+        return {
+          input: { text: message },
+          queries: [`How likely is this message to be a scam or fraud attempt? Message: ${message}`, `Is this a known fraud or scam scheme? ${message}`],
+        };
+      }
+      return { skip: subject ? "Nothing to check." : "No link, wallet or message to check." };
+    }
+    case "redflags": {
+      if (!message) return { skip: "No message text to classify." };
+      // The wallet and the link have their own checks; left in, they pull the router towards
+      // FRAUD_DETECTION and the classifier never sees the prose.
+      const prose = message
+        .replace(/\b0x[0-9a-fA-F]{40}\b/g, "[a wallet address]")
+        .replace(/https?:\/\/[^\s<>"'`)\]]+/gi, "[a link]")
+        .replace(/\s+/g, " ")
+        .trim();
+      return {
+        input: { text: prose },
+        // The classification wording timed out through the router twice on 2026-09-06; the
+        // plain-words wording is filed under FRAUD_DETECTION and answered in under a second.
+        queries: [
+          `Read this message someone received and say, in plain words, whether it looks like a scam, phishing, spam or legitimate, and which warning signs give it away. Message: "${prose}"`,
+          `Classify this text message as one of: scam, phishing, spam, legitimate. Then list the red flags in it, such as urgency, requests for money or codes, unknown links, or impersonation. Message: "${prose}"`,
+        ],
+        context: { text: prose },
+      };
+    }
     default:
       return { skip: "Unknown step." };
   }
@@ -292,7 +390,7 @@ function applyParsed(receipt: Receipt, parsed: Parsed): void {
 }
 
 function preview(parsed: ParsedQuery, spec: StepSpec): string {
-  const subject = parsed.mode === "research" ? (parsed.url ?? "") : (parsed.topic ?? "");
+  const subject = parsed.mode === "research" ? (parsed.url ?? "") : parsed.mode === "news" ? (parsed.topic ?? "") : (parsed.url ?? parsed.address ?? parsed.message?.slice(0, 80) ?? "");
   return `${spec.title}: ${subject}`.slice(0, 160);
 }
 
@@ -402,6 +500,11 @@ async function askOnce(
   const receipt = buildReceipt(raw, { intent: intent ?? spec.intent, miner, rank, routerIntent: intent, reasoning: raw.reasoning ?? null, endpoint: raw.endpoint ?? null, payer: payerAddress() });
   const reader = readerFor(intent, receipt.minerSlug);
   const parsedOut: Parsed = reader ? reader(raw.result, derived.input) : {};
+  // Without a reader that knows better, an empty result is not an answer.
+  const r = raw.result;
+  if (!reader && !parsedOut.unusable && (r === null || r === undefined || r === "" || (typeof r === "object" && !Array.isArray(r) && Object.keys(r as object).length === 0))) {
+    parsedOut.unusable = "the miner returned an empty result.";
+  }
   applyParsed(receipt, parsedOut);
   const usable = !parsedOut.unusable;
   const accepted = intent !== null && spec.accept.includes(intent);
@@ -437,7 +540,7 @@ async function keep(ctx: RunContext, spec: StepSpec, done: Outcome): Promise<voi
 
 export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Context, ctx: RunContext): Promise<StepResult> {
   const base = { id: spec.id, title: spec.title, intent: spec.intent };
-  const derived = deriveInput(spec, parsed, context);
+  const derived = await deriveInput(spec, parsed, context);
   if ("skip" in derived) return { ...base, status: "skipped", receipt: null, data: null, error: derived.skip, attempts: [] };
   const attempts: Attempt[] = [];
   let offTarget: Outcome | null = null;
@@ -511,6 +614,13 @@ export function summarize(parsed: ParsedQuery, steps: StepResult[], source?: { t
     }
     const rl = by("related");
     if (rl?.status === "ok") lines.push(`Related work: ${strs(d("related")["papers"]).length || "some"} papers (${via(rl)}).`);
+  } else if (parsed.mode === "safety") {
+    const v = safetyVerdict(steps);
+    lines.push(v.line);
+    for (const id of ["scan", "cert", "where", "scam", "redflags"] as StepId[]) {
+      const s = by(id);
+      if (s?.status === "ok") lines.push(`${s.title}: ${s.receipt?.label ?? "answered"} (${via(s)}).`);
+    }
   } else {
     const hl = by("headlines");
     if (hl?.status === "ok") lines.push(`${articlesOf(d("headlines")["items"]).length} headlines (${via(hl)}).`);

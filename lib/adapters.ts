@@ -174,6 +174,23 @@ const AI_TEXT_DETECTION: Record<string, Reader> = {
 };
 
 const FRAUD_DETECTION: Record<string, Reader> = {
+  // Answers in prose with label "ANSWERED"; the verdict is in the prose.
+  "telegraph-sentinel": (result) => {
+    const r = rec(result);
+    const answer = str(r["answer"]) ?? str(r["reason"]) ?? str(r["signal"]);
+    if (!answer) return { unusable: "no answer text came back." };
+    const risk = answer.match(/(\d{1,3})\s*% risk/i);
+    const label = /not_applicable/i.test(str(r["label"]) ?? answer)
+      ? "not applicable"
+      : /\b(phishing|scam|fraudulent|fraud attempt)\b/i.test(answer)
+        ? "scam likely"
+        : /\blegitimate\b/i.test(answer)
+          ? "looks legitimate"
+          : risk
+            ? `${risk[1]}% risk`
+            : (str(r["assessment_status"]) ?? str(r["label"]));
+    return { label, confidence: toConfidence(r["confidence"]), answer, data: { verdict: label, answer } };
+  },
   "sarzops-transaction-risk": (result) => {
     const r = rec(result);
     const answer = str(r["signal"]) ?? str(r["explanation"]);
@@ -307,7 +324,21 @@ const CHAT_COMPLETION: Record<string, Reader> = {
   },
 };
 
+const URL_SCAN: Record<string, Reader> = {
+  // URLhaus answers with nothing at all when the URL is not in its malware feed.
+  "url-scan-urlhaus": (result, input) => {
+    const r = rec(result);
+    const listed = str(r["threat"]) ?? str(r["url_status"]) ?? str(r["query_status"]);
+    if (result === "" || result === null || result === undefined || (typeof result === "object" && !Object.keys(r).length)) {
+      return { label: "not listed", confidence: null, answer: `${input.url ?? "The URL"} is not in the URLhaus malware feed (checked live).`, data: { listed: false } };
+    }
+    if (listed && /no_results|not.?found/i.test(listed)) return { label: "not listed", answer: `${input.url ?? "The URL"} is not in the URLhaus malware feed.`, data: { listed: false } };
+    return { label: listed ?? "listed", answer: str(r["threat"]) ? `Listed in URLhaus as ${r["threat"]}${str(r["url_status"]) ? ` (${r["url_status"]})` : ""}.` : JSON.stringify(result).slice(0, 400), data: { listed: true } };
+  },
+};
+
 export const READERS: Record<string, Record<string, Reader>> = {
+  URL_SCAN,
   CONTENT_EXTRACTION,
   AI_TEXT_DETECTION,
   FRAUD_DETECTION,

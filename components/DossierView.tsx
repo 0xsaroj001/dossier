@@ -1,5 +1,6 @@
 import type { Article } from "@/lib/adapters";
 import type { DossierSummary, Mode, ParsedQuery, Receipt, SourceRecord, StepResult } from "@/lib/types";
+import { safetyVerdict, toneOf } from "@/lib/verdict";
 
 export type StepView = StepResult & { state?: "pending" | "running" };
 
@@ -359,12 +360,66 @@ function NewsFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQuery }
   );
 }
 
+function SafetyFront({ steps, parsed, done }: { steps: StepView[]; parsed: ParsedQuery; done: boolean }) {
+  const v = safetyVerdict(steps);
+  const running = steps.some((s) => s.state === "running" || s.state === "pending");
+  return (
+    <div className="front two">
+      <div className="card">
+        <div className="kicker">Verdict</div>
+        <h3>
+          {running && !done ? (
+            <span>
+              <span className="spinner" />
+              checking…
+            </span>
+          ) : (
+            <span className={`stamp ${v.tone === "caution" ? "bad" : v.tone === "clear" ? "ok" : "muted"}`} style={{ fontSize: 14 }}>
+              {v.tone === "caution" ? "Caution" : v.tone === "clear" ? "No red flags" : "No verdict"}
+            </span>
+          )}
+        </h3>
+        <p className="abstract">{running && !done ? "The checks come back one at a time; the verdict is drawn from their labels once they are in." : v.line}</p>
+        <div className="chips">
+          {parsed.url && <span className="chip">{parsed.url}</span>}
+          {parsed.address && <span className="chip mono">{parsed.address}</span>}
+        </div>
+        {parsed.message && (
+          <>
+            <div className="kicker" style={{ marginTop: 14 }}>
+              The message
+            </div>
+            <p className="answer">{parsed.message}</p>
+          </>
+        )}
+      </div>
+      <div className="card">
+        <div className="kicker">Checks</div>
+        <ul className="plain">
+          {steps.map((s) => {
+            const tone = toneOf(s);
+            return (
+              <li key={s.id}>
+                <span className={`stamp ${s.status !== "ok" ? "muted" : tone === "caution" ? "bad" : tone === "clear" ? "ok" : "warn"}`} style={{ marginRight: 8 }}>
+                  {s.status === "ok" ? (s.receipt?.label ?? (tone === "caution" ? "flagged" : "answered")) : s.state === "running" ? "checking" : s.status === "skipped" ? "skipped" : s.state === "pending" ? "queued" : "failed"}
+                </span>
+                {s.title}
+                {s.receipt && <div className="src">{s.receipt.minerSlug} · routed as {s.receipt.routerIntent ?? s.intent}</div>}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function DossierView({ mode, parsed, source = null, sourceError = null, steps, summary, createdAt, shareUrl, done }: DossierViewProps) {
   return (
     <div className="dossier">
       <div className="dossier-head">
         <div className="kicker">
-          {mode === "research" ? "Research dossier" : "News dossier"}
+          {mode === "research" ? "Research dossier" : mode === "news" ? "News dossier" : "Safety check"}
           {createdAt ? ` · ${createdAt.slice(0, 16).replace("T", " ")} UTC` : ""}
         </div>
         <h2 style={{ marginTop: 4 }}>{parsed.query}</h2>
@@ -376,7 +431,7 @@ export default function DossierView({ mode, parsed, source = null, sourceError =
           {parsed.language && <span className="chip">→ {parsed.language.name}</span>}
         </div>
       </div>
-      {mode === "research" ? <ResearchFront steps={steps} parsed={parsed} source={source} sourceError={sourceError} /> : <NewsFront steps={steps} parsed={parsed} />}
+      {mode === "research" ? <ResearchFront steps={steps} parsed={parsed} source={source} sourceError={sourceError} /> : mode === "news" ? <NewsFront steps={steps} parsed={parsed} /> : <SafetyFront steps={steps} parsed={parsed} done={done} />}
       {summary && done && (
         <div className="card" style={{ marginTop: 16 }}>
           <div className="kicker">Case summary</div>
