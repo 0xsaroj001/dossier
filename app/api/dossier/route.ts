@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { config } from "@/lib/config";
+import { publicBase } from "@/lib/config";
 import { asParsed, bad, visitorFrom, withVisitor } from "@/lib/http";
 import { specsFor, summarize } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
@@ -27,8 +27,8 @@ const body = z.object({
 });
 
 function publicUrl(req: NextRequest): string {
-  const c = config().PUBLIC_URL;
-  if (c) return c.replace(/\/+$/, "");
+  const c = publicBase();
+  if (c) return c;
   const proto = req.headers.get("x-forwarded-proto") ?? "http";
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "localhost:3000";
   return `${proto}://${host}`;

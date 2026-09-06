@@ -85,6 +85,14 @@ export function paidWorkEnabled(c: Config = config()): boolean {
   return Boolean(c.PAYER_PRIVATE_KEY) && c.DAILY_CALL_BUDGET > 0 && !c.PAUSED;
 }
 
+/** The deployment's public origin: PUBLIC_URL, else the production host Vercel sets, else nothing. */
+export function publicBase(c: Config = config()): string | null {
+  const explicit = c.PUBLIC_URL?.replace(/\/+$/, "");
+  if (explicit) return explicit;
+  const vercelHost = process.env["VERCEL_PROJECT_PRODUCTION_URL"] ?? process.env["VERCEL_URL"];
+  return vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, "")}` : null;
+}
+
 export function utcDay(d: Date = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
