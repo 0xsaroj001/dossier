@@ -6,8 +6,10 @@ import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { config } from "./config";
 
 /**
- * The Telegraph node client. Paid calls answer the node's 402 challenge with an EIP-3009
- * USDC authorisation signed by the app's payer key; discovery and verification are free.
+ * The Telegraph node client. Every question goes to the Engine's auto-routed ask: the
+ * network's own router classifies the intent and picks the miner. The app never names a
+ * miner. Paid calls answer the node's 402 challenge with an EIP-3009 USDC authorisation
+ * signed by the payer key; discovery and verification are free.
  */
 export const BASE_SEPOLIA = "eip155:84532" as const;
 export const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
@@ -50,12 +52,6 @@ export interface EngineResponse {
   settlement?: Settlement | null;
 }
 
-export interface DirectRequest {
-  method: "GET" | "POST";
-  endpoint: string;
-  payload: Record<string, unknown>;
-}
-
 function nodeUrl(): string {
   return config().TELEGRAPH_NODE.replace(/\/+$/, "");
 }
@@ -96,12 +92,16 @@ let paying: Fetcher | null = null;
 
 function payingFetch(): Fetcher {
   if (paying) return paying;
-  const pk = config().PAYER_PRIVATE_KEY;
+  const c = config();
+  const pk = c.PAYER_PRIVATE_KEY;
   if (!pk) throw new NodeError("No payer wallet is configured.", "unpaid");
   const account = privateKeyToAccount(pk as `0x${string}`);
   const signer = toClientEvmSigner(account);
   const client = x402Client.fromConfig({
     schemes: [{ network: BASE_SEPOLIA, client: new ExactEvmScheme(signer) }],
+    // The router picks the miner, so the app cannot screen prices beforehand. The client
+    // refuses to construct any payment above the cap; a refused payment settles nothing.
+    spendControls: { maxAmountPerPayment: `$${c.MAX_CALL_PRICE_USDC}` },
   });
   // Build the Request before the payment wrapper clones it for the paid retry. On a
   // serverless runtime the (url, init) form lost its headers and body on the second
@@ -115,12 +115,19 @@ function snippet(text: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
-async function paidPost(path: string, body: unknown, timeoutMs: number): Promise<EngineResponse> {
+/**
+ * Auto-routed ask. `context` is merged into the routed request body by the node, which is
+ * how a long passage or a structured hint reaches the miner intact while the question
+ * itself stays short enough for the classifier.
+ */
+export async function askRouted(query: string, context?: Record<string, unknown>, timeoutMs = config().ROUTER_TIMEOUT_MS): Promise<EngineResponse> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   const started = Date.now();
+  const body: Record<string, unknown> = { query };
+  if (context && Object.keys(context).length > 0) body["context"] = context;
   try {
-    const res = await payingFetch()(`${nodeUrl()}${path}`, {
+    const res = await payingFetch()(`${nodeUrl()}/engine/v1/ask`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
@@ -135,7 +142,6 @@ async function paidPost(path: string, body: unknown, timeoutMs: number): Promise
         402,
       );
     }
-    if (res.status === 422) throw new NodeError(`The node predicted this request would fail: ${snippet(text)}`, "node", 422);
     if (!res.ok) throw new NodeError(`The node answered ${res.status}: ${snippet(text)}`, "node", res.status);
     let parsed: EngineResponse;
     try {
@@ -152,7 +158,7 @@ async function paidPost(path: string, body: unknown, timeoutMs: number): Promise
     if (err.name === "AbortError" || /aborted/i.test(err.message)) {
       throw new NodeError(`No answer within ${Math.round(timeoutMs / 1000)}s.`, "timeout");
     }
-    if (/payment|scheme|signer|sign|spend|insufficient|authoriz|facilitator/i.test(err.message)) {
+    if (/payment|scheme|signer|sign|spend|insufficient|authoriz|facilitator|exceeds/i.test(err.message)) {
       throw new NodeError(`Could not construct a payment: ${snippet(err.message)}`, "unpaid");
     }
     throw new NodeError(`Could not reach the Telegraph node: ${snippet(err.message)}`, "network");
@@ -161,18 +167,8 @@ async function paidPost(path: string, body: unknown, timeoutMs: number): Promise
   }
 }
 
-/** Telegraph's own router: an LLM classifies the intent and picks a ranked miner. */
-export function askRouted(query: string, timeoutMs = config().ROUTER_TIMEOUT_MS): Promise<EngineResponse> {
-  return paidPost("/engine/v1/ask", { query }, timeoutMs);
-}
-
-/** Direct dispatch to one miner's endpoint, the way the organisers' reference apps do it. */
-export function askDirect(minerId: string, req: DirectRequest, timeoutMs = config().CALL_TIMEOUT_MS): Promise<EngineResponse> {
-  return paidPost(`/engine/v1/ask/${encodeURIComponent(minerId)}`, req, timeoutMs);
-}
-
 // ---------------------------------------------------------------------------
-// Free endpoints: challenge, catalogue, signal record, balance.
+// Free endpoints: challenge, catalogue (to name and rank what the router chose), signals, balance.
 
 export interface Challenge {
   status: number;
@@ -211,12 +207,6 @@ export interface SignalMapping {
   reason_field?: string | null;
 }
 
-export interface MinerEndpoint {
-  path: string;
-  method?: string;
-  description?: string;
-}
-
 export interface MinerScore {
   intent_id: string;
   epoch_id?: number;
@@ -232,8 +222,6 @@ export interface Miner {
   supported_intents?: string[];
   signal_mapping?: SignalMapping | null;
   scores?: MinerScore[];
-  endpoints?: MinerEndpoint[];
-  input_schema?: { properties?: Record<string, unknown>; required?: string[] } | null;
   activation_status?: string;
   /** Micro-USDC: 10000 is $0.01. */
   min_price_usdc?: number;
@@ -278,16 +266,12 @@ export interface Ranked {
   score: number | null;
 }
 
-/** Active miners serving `intent`, best rank first, within the price cap. Unscored miners last. */
-export async function rankedFor(intent: string, maxPriceUsdc = config().MAX_CALL_PRICE_USDC): Promise<Ranked[]> {
+/** The live leaderboard for an intent, best rank first. Read for display only; the router does the choosing. */
+export async function leaderboard(intent: string): Promise<Ranked[]> {
   const miners = await minersForIntent(intent);
-  const blocked = new Set(config().MINER_BLOCKLIST);
   return miners
     .filter((m) => (m.activation_status ?? "active") === "active")
-    .filter((m) => !blocked.has(m.slug.toLowerCase()))
     .filter((m) => (m.supported_intents ?? []).includes(intent))
-    .filter((m) => priceUsdc(m) <= maxPriceUsdc)
-    .filter((m) => !/^https?:\/\/(127\.|localhost|0\.0\.0\.0)/i.test(m.base_url ?? ""))
     .map((m) => {
       const s = m.scores?.find((x) => x.intent_id === intent);
       return { miner: m, rank: s?.rank ?? null, score: s?.score ?? null };

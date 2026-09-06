@@ -81,7 +81,6 @@ export interface ReceiptContext {
   intent: string;
   miner: Miner | null;
   rank: number | null;
-  routedBy: "engine" | "app";
   routerIntent?: string | null;
   reasoning?: string | null;
   endpoint?: string | null;
@@ -103,7 +102,6 @@ export function buildReceipt(resp: EngineResponse, ctx: ReceiptContext): Receipt
     minerName: ctx.miner?.name ?? resp.miner_name ?? null,
     minerId: resp.miner_id !== undefined ? String(resp.miner_id) : (ctx.miner?.id ?? null),
     minerRank: ctx.rank,
-    routedBy: ctx.routedBy,
     routerIntent: ctx.routerIntent ?? null,
     routerReasoning: ctx.reasoning ?? resp.reasoning ?? null,
     endpoint: ctx.endpoint ?? resp.endpoint ?? null,

@@ -24,11 +24,6 @@ const schema = z.object({
   DAILY_CALL_BUDGET: z.coerce.number().int().min(0).default(0),
   VISITOR_DAILY_CALLS: z.coerce.number().int().min(0).default(64),
   MAX_CALL_PRICE_USDC: z.coerce.number().min(0).default(0.02),
-  /** Comma-separated miner slugs the app must never call, whatever their rank. */
-  MINER_BLOCKLIST: z
-    .string()
-    .default("")
-    .transform((v) => v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)),
   PAUSED: flag,
   VISITOR_SALT: z.string().min(1).default("dossier-dev-salt"),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
@@ -37,8 +32,8 @@ const schema = z.object({
   KV_REST_API_TOKEN: z.string().optional(),
   TELEGRAPH_NODE: z.string().default("https://devnode.telegraphprotocol.com"),
   PUBLIC_URL: z.string().optional(),
-  ROUTER_TIMEOUT_MS: z.coerce.number().int().min(1000).default(25_000),
-  CALL_TIMEOUT_MS: z.coerce.number().int().min(1000).default(45_000),
+  /** One routed ask, including the node's own miner fallback. Must leave room inside a 60 s function. */
+  ROUTER_TIMEOUT_MS: z.coerce.number().int().min(1000).default(48_000),
 });
 
 export type Config = z.infer<typeof schema>;

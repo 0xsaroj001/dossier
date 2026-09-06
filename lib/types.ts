@@ -12,18 +12,7 @@ export type Intent =
   | "NEWS_SEARCH"
   | "CHAT_COMPLETION";
 
-export type StepId =
-  | "read"
-  | "metadata"
-  | "authorship"
-  | "fraud"
-  | "fact"
-  | "provenance"
-  | "related"
-  | "translate"
-  | "headlines"
-  | "search"
-  | "brief";
+export type StepId = "read" | "abstract" | "authorship" | "fraud" | "fact" | "provenance" | "related" | "translate" | "headlines" | "search" | "brief";
 
 export interface Language {
   name: string;
@@ -43,14 +32,12 @@ export interface ParsedQuery {
 export interface StepSpec {
   id: StepId;
   title: string;
-  /** The canonical intent this step is filed under. */
+  /** The canonical intent the step is written for. */
   intent: Intent;
-  /** "engine": Telegraph's own router picks the miner; "direct": the app calls the best-ranked miner. */
-  route: "engine" | "direct";
-  /** For engine steps: the intent the app calls directly when the router does not deliver. */
-  fallbackIntent?: Intent;
-  /** For engine steps: intents whose answer counts as serving this step. */
-  acceptIntents?: string[];
+  /** Intents the router may file the question under and still serve the step. */
+  accept: string[];
+  /** When true, an answer filed under any other intent is never used, even if readable. */
+  strict?: boolean;
   needs: StepId[];
   /** Only planned when the query asks for it (a target language). */
   optional?: boolean;
@@ -59,12 +46,12 @@ export interface StepSpec {
 }
 
 export interface Receipt {
+  /** The intent the router classified the question as; the step's own intent when the router said nothing. */
   intent: string;
   minerSlug: string | null;
   minerName: string | null;
   minerId: string | null;
   minerRank: number | null;
-  routedBy: "engine" | "app";
   routerIntent: string | null;
   routerReasoning: string | null;
   endpoint: string | null;
@@ -81,10 +68,12 @@ export interface Receipt {
 }
 
 export interface Attempt {
+  /** Which wording was sent: the step's first phrasing or its second. */
+  phrasing: 1 | 2;
   minerSlug: string;
   minerRank: number | null;
-  routedBy: "engine" | "app";
-  outcome: "ok" | "unusable" | "error" | "timeout" | "unpaid" | "off-target";
+  intent: string | null;
+  outcome: "ok" | "unusable" | "off-target" | "error" | "timeout" | "unpaid";
   durationMs: number | null;
   costUsd: number | null;
   note: string | null;
@@ -128,12 +117,13 @@ export interface LedgerRow {
   visitor: string;
   mode: Mode;
   step: StepId;
+  /** The step's own intent. */
   intent: string;
+  /** What the router classified the question as. */
+  routerIntent: string | null;
   minerSlug: string | null;
   minerId: string | null;
   minerRank: number | null;
-  routedBy: "engine" | "app";
-  routerIntent: string | null;
   endpoint: string | null;
   status: "ok" | "unusable" | "error" | "timeout" | "unpaid";
   confidence: number | null;

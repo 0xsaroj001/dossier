@@ -8,23 +8,26 @@ with `date -u`, never the local clock.
 
 Live node facts gathered for free: the 45 canonical intents and their miner counts; the active
 catalogue (130 miners); manifests and OpenAPI entries for the top miners of the ten target
-intents; every planned request shape validated against the node's free pre-check; output shapes
-probed directly on the miners' own hosts; the 402 challenge decoded; Blockscout's response shape.
+intents; output shapes probed on the miners' own hosts; the 402 challenge decoded; the Engine
+docs for `context` and the router's fallback; Blockscout's response shape.
 
-## Phase 1 — Core and UI, 2026-09-06 05:50–07:10 UTC — done
+## Phase 1 — Core and UI, 2026-09-06 05:50–07:10 UTC — done, then re-cut
 
-Parser, node client, adapters, pipeline, guards, store, chain check, six API routes, workbench,
-dossier view, ledger, verify and share pages. Typecheck clean; `next build` clean.
+Parser, node client, pipeline, guards, store, chain check, six API routes, workbench, dossier
+view, ledger, verify and share pages. At about 06:20 UTC the operator ruled out direct dispatch;
+the pipeline was re-cut so that every step is an auto-routed ask with two phrasings, an
+accept-list and a reader. Typecheck clean; `next build` clean.
 
 ## Phase 2 — Verification — done except the paid run
 
-- 45 unit tests pass (parser, adapters, receipts, pipeline inputs, store, guards, config).
+- 50 unit tests pass (parser, readers, receipts, pipeline questions and hints, store, guards,
+  config).
 - Judge journey in Playwright: 7 free tests pass against the dev server; the paid test is gated
   behind `E2E_PAID=1`.
-- `npm run preflight` clean against the live node: challenge matches the client constants and
-  every step has a ranked miner whose adapter fits.
-- **Open:** the first paid call. Needs the operator's `.env.local`. Command and expected output in
-  DEMO.md.
+- `npm run preflight` clean against the live node: challenge matches the client constants, every
+  step prints its question and the intent's leaderboard.
+- **Open:** the first paid question. Needs the operator's `.env.local`. Command and expected
+  output in DEMO.md.
 
 ## Phase 3 — Ship (operator) — next
 
@@ -32,7 +35,7 @@ dossier view, ledger, verify and share pages. Typecheck clean; `next build` clea
    `DAILY_CALL_BUDGET=400`, `VISITOR_SALT`, `PUBLIC_URL`.
 2. `npm run preflight`, then `npm run live -- research "https://arxiv.org/abs/1706.03762 in Hindi"`,
    then `npm run live -- news "AI regulation in India, in Hindi"`. Paste the receipts into
-   GAPS G1 and close it.
+   GAPS G1 and close it; note any `warnings` for G2.
 3. Push to `github.com/0xsaroj001/dossier` (commands in DEMO.md).
 4. Import into Vercel from the separate account; add the env vars and Upstash Redis; deploy;
    set `PUBLIC_URL`; run `BASE_URL=https://… E2E_PAID=1 npm run e2e`.

@@ -9,8 +9,7 @@ interface PlanStep {
   id: StepId;
   title: string;
   intent: StepResult["intent"];
-  route: "engine" | "direct";
-  fallbackIntent: string | null;
+  accept: string[];
   blurb: string;
 }
 
@@ -179,8 +178,8 @@ export default function Workbench() {
       </div>
       <p className="note" style={{ marginTop: 10 }}>
         {mode === "research"
-          ? "Eight steps, seven intents: read, record, AI-text detection, fraud record, fact-check, provenance, related work, translation. Each is a paid call to a ranked Telegraph miner, and each shows its receipt."
-          : "Three to four steps, four intents: headlines, recent coverage, a written briefing, translation. Each is a paid call to a ranked Telegraph miner, and each shows its receipt."}
+          ? "Eight questions, seven intents: the page, the abstract, AI-text detection, fraud record, fact-check, provenance, related work, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."
+          : "Three to four questions, four intents: headlines, recent coverage, a written briefing, translation. Each goes to Telegraph's router, which picks the intent and the miner, and each shows its receipt."}
       </p>
       {error && <p className="error">{error}</p>}
       {parsed && <DossierView mode={mode} parsed={parsed} steps={steps} summary={summary} shareUrl={share} done={done} />}

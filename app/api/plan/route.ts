@@ -20,6 +20,6 @@ export async function POST(req: Request) {
   const parsed = parseQuery(b.data.mode, b.data.query, b.data.language ?? null);
   const problem = validateParsed(parsed);
   if (problem) return bad(problem);
-  const steps = buildPlan(parsed).map((s) => ({ id: s.id, title: s.title, intent: s.intent, route: s.route, fallbackIntent: s.fallbackIntent ?? null, blurb: s.blurb }));
+  const steps = buildPlan(parsed).map((s) => ({ id: s.id, title: s.title, intent: s.intent, accept: s.accept, blurb: s.blurb }));
   return NextResponse.json({ ok: true, parsed, steps });
 }

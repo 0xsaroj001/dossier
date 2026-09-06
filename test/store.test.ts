@@ -12,11 +12,10 @@ const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
   mode: "research",
   step: "read",
   intent: "CONTENT_EXTRACTION",
+  routerIntent: "CONTENT_EXTRACTION",
   minerSlug: "netwire-content-extraction",
   minerId: "7335",
   minerRank: 2,
-  routedBy: "app",
-  routerIntent: null,
   endpoint: "/extract",
   status: "ok",
   confidence: 0.95,
@@ -101,15 +100,6 @@ describe("spend guards", () => {
     delete process.env["PAYER_PRIVATE_KEY"];
     delete process.env["DAILY_CALL_BUDGET"];
     delete process.env["VISITOR_DAILY_CALLS"];
-    resetConfigForTests();
-  });
-
-  it("parses the miner blocklist", async () => {
-    process.env["MINER_BLOCKLIST"] = " LiveCert, tavily ,";
-    resetConfigForTests();
-    const { config } = await import("@/lib/config");
-    expect(config().MINER_BLOCKLIST).toEqual(["livecert", "tavily"]);
-    delete process.env["MINER_BLOCKLIST"];
     resetConfigForTests();
   });
 

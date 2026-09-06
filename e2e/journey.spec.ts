@@ -24,17 +24,17 @@ test("health reports the configuration honestly", async ({ request }) => {
   expect(j.budget).toHaveProperty("limit");
 });
 
-test("a research query plans eight steps over seven intents", async ({ request }) => {
+test("a research query plans eight questions over seven intents", async ({ request }) => {
   const res = await request.post("/api/plan", { data: { mode: "research", query: RESEARCH } });
   const j = await res.json();
   expect(j.ok).toBe(true);
   expect(j.parsed.url).toBe("https://arxiv.org/abs/1706.03762");
   expect(j.parsed.language.name).toBe("Hindi");
-  expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["read", "metadata", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
-  expect(j.steps.find((s: { id: string }) => s.id === "provenance").route).toBe("engine");
+  expect(j.steps.map((s: { id: string }) => s.id)).toEqual(["read", "abstract", "authorship", "fraud", "fact", "provenance", "related", "translate"]);
+  expect(j.steps.find((s: { id: string }) => s.id === "provenance").accept).toContain("ACADEMIC_SEARCH");
 });
 
-test("a news query plans headlines, router-dispatched search, briefing and translation", async ({ request }) => {
+test("a news query plans headlines, search, briefing and translation", async ({ request }) => {
   const res = await request.post("/api/plan", { data: { mode: "news", query: NEWS } });
   const j = await res.json();
   expect(j.ok).toBe(true);

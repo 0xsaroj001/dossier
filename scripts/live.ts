@@ -46,7 +46,7 @@ async function main() {
     const rc = r.receipt;
     const line =
       r.status === "ok" && rc
-        ? `ok  ${rc.minerSlug}#${rc.minerRank ?? "?"} via ${rc.routedBy === "engine" ? `router→${rc.routerIntent}` : "direct"} · conf ${rc.confidence ?? "n/a"} · $${rc.costUsd ?? "?"} · ${rc.durationMs}ms · signal ${rc.signalHash?.slice(0, 12) ?? "none"} · tx ${rc.settlementTx?.slice(0, 12) ?? "none"}`
+        ? `ok  ${rc.minerSlug}#${rc.minerRank ?? "?"} routed as ${rc.routerIntent ?? "?"} · conf ${rc.confidence ?? "n/a"} · $${rc.costUsd ?? "?"} · ${rc.durationMs}ms · signal ${rc.signalHash?.slice(0, 12) ?? "none"} · tx ${rc.settlementTx?.slice(0, 12) ?? "none"}`
         : `${r.status.toUpperCase()}  ${r.error}`;
     console.log(`${line}  [${Date.now() - t0}ms, ${r.attempts.length} attempt(s)]`);
     for (const a of r.attempts) if (a.outcome !== "ok") console.log(`    · ${a.minerSlug}: ${a.outcome}${a.note ? ` — ${a.note}` : ""}`);

@@ -54,8 +54,8 @@ function ReceiptBlock({ r }: { r: Receipt }) {
         </div>
       </div>
       <div>
-        <div className="k">Chosen by</div>
-        <div className="v">{r.routedBy === "engine" ? `Telegraph's router (${r.routerIntent ?? r.intent})` : "the app, by leaderboard rank"}</div>
+        <div className="k">Routed as</div>
+        <div className="v">{r.routerIntent ?? "not stated"}</div>
       </div>
       <div>
         <div className="k">Confidence</div>
@@ -93,7 +93,7 @@ function ReceiptBlock({ r }: { r: Receipt }) {
       </div>
       {r.routerReasoning && (
         <div style={{ gridColumn: "1 / -1" }}>
-          <div className="k">Routing</div>
+          <div className="k">Router&apos;s reasoning</div>
           <div className="v" style={{ wordBreak: "normal" }}>
             {r.routerReasoning}
           </div>
@@ -156,9 +156,10 @@ function StepCard({ s, n }: { s: StepView; n: number }) {
         <ul className="attempts">
           {s.attempts.map((a, i) => (
             <li key={i}>
-              {a.minerSlug}
-              {a.minerRank ? ` (#${a.minerRank})` : ""} via {a.routedBy === "engine" ? "router" : "direct call"}: {a.outcome}
-              {a.note ? ` — ${a.note}` : ""}
+              Ask {a.phrasing}: {a.minerSlug}
+              {a.minerRank ? ` (#${a.minerRank})` : ""}
+              {a.intent ? ` as ${a.intent}` : ""} — {a.outcome}
+              {a.note ? `. ${a.note}` : ""}
               {typeof a.durationMs === "number" ? ` · ${ms(a.durationMs)}` : ""}
             </li>
           ))}
@@ -170,12 +171,13 @@ function StepCard({ s, n }: { s: StepView; n: number }) {
 
 function ResearchFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQuery }) {
   const by = (id: string) => steps.find((s) => s.id === id);
-  const meta = rec(by("metadata")?.data);
   const read = rec(by("read")?.data);
-  const title = str(meta["title"]) ?? str(read["title"]);
-  const authors = Array.isArray(meta["authors"]) ? (meta["authors"] as string[]) : [];
-  const abstract = str(meta["abstract"]);
-  const year = str(meta["year"]);
+  const abs = rec(by("abstract")?.data);
+  const title = str(read["title"]) ?? str(abs["title"]);
+  const readAuthors = Array.isArray(read["authors"]) ? (read["authors"] as string[]) : [];
+  const authors = readAuthors.length ? readAuthors : Array.isArray(abs["authors"]) ? (abs["authors"] as string[]) : [];
+  const abstract = str(abs["abstract"]) ?? str(read["abstract"]);
+  const year = str(read["year"]) ?? str(abs["year"]);
   const au = by("authorship");
   const fr = by("fraud");
   const fc = by("fact");
@@ -235,7 +237,7 @@ function ResearchFront({ steps, parsed }: { steps: StepView[]; parsed: ParsedQue
                 <span className="stamp muted">{pv?.state === "running" ? "routing" : "—"}</span>
               )}
             </div>
-            <div className="m">{pv?.receipt ? `router → ${pv.receipt.routerIntent ?? pv.receipt.intent} · ${pv.receipt.minerSlug}` : pv?.status === "skipped" ? "skipped" : ""}</div>
+            <div className="m">{pv?.receipt ? `routed as ${pv.receipt.routerIntent ?? pv.receipt.intent} · ${pv.receipt.minerSlug}` : pv?.status === "skipped" ? "skipped" : ""}</div>
           </div>
         </div>
         {papers.length > 0 && (

@@ -2,26 +2,22 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
-import { adapterFor, type StepInput } from "../lib/adapters";
 import { config, configProblems, paidWorkEnabled } from "../lib/config";
-import { RESEARCH_STEPS, NEWS_STEPS } from "../lib/pipeline";
-import { BASE_SEPOLIA, fetchChallenge, payerAddress, payerUsdcBalance, rankedFor, TELEGRAPH_COLLECTOR, USDC_BASE_SEPOLIA } from "../lib/telegraph";
+import { parseQuery } from "../lib/parse";
+import { buildPlan, deriveInput, type Context } from "../lib/pipeline";
+import { BASE_SEPOLIA, fetchChallenge, leaderboard, payerAddress, payerUsdcBalance, TELEGRAPH_COLLECTOR, USDC_BASE_SEPOLIA } from "../lib/telegraph";
 
 /**
  * Free checks before the first paid call: environment, node reachability, the 402 challenge
- * against the constants the client signs for, and which miner would serve each step today.
- * Spends nothing and engages no miner.
+ * against the constants the client signs for, the question each step will put to the router,
+ * and who leads the leaderboard for the intent it is written for. Spends nothing.
  */
-const SAMPLE: Record<string, StepInput> = {
-  CONTENT_EXTRACTION: { url: "https://arxiv.org/abs/1706.03762", question: "Extract the title" },
-  AI_TEXT_DETECTION: { text: "word ".repeat(60) },
-  FRAUD_DETECTION: { question: "Is there any documented fraud associated with the paper X?" },
-  FACT_CHECK: { claim: "The Transformer is based solely on attention mechanisms." },
-  ACADEMIC_SEARCH: { topic: "attention mechanisms" },
-  LANGUAGE_TRANSLATION: { text: "Good morning", language: { name: "Hindi", code: "hi" } },
-  NEWS_HEADLINES: { topic: "technology", category: "technology", region: "India" },
-  NEWS_SEARCH: { topic: "AI regulation", region: "India" },
-  CHAT_COMPLETION: { messages: [{ role: "user", content: "Say hello" }] },
+const SAMPLE_CONTEXT: Context = {
+  read: { title: "Attention Is All You Need", authors: ["Ashish Vaswani", "Noam Shazeer"], abstract: null, date: "12 Jun 2017", year: "2017", excerpt: null },
+  abstract: { title: "Attention Is All You Need", authors: [], abstract: "We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. ".repeat(3), date: null, year: null, excerpt: null },
+  headlines: { items: [{ title: "Sample headline", source: "Sample", url: null, published: null, description: null }] },
+  search: { articles: [{ title: "Sample article", source: "Sample", url: null, published: null, description: "d" }], answer: null },
+  brief: { text: "Sample briefing text." },
 };
 
 async function main() {
@@ -31,7 +27,7 @@ async function main() {
   console.log("== environment");
   console.log(`node             ${c.TELEGRAPH_NODE}`);
   console.log(`payer            ${payer ?? "(not configured)"}`);
-  console.log(`daily budget     ${c.DAILY_CALL_BUDGET} calls, per visitor ${c.VISITOR_DAILY_CALLS}, price cap $${c.MAX_CALL_PRICE_USDC}`);
+  console.log(`daily budget     ${c.DAILY_CALL_BUDGET} calls, per visitor ${c.VISITOR_DAILY_CALLS}, price cap $${c.MAX_CALL_PRICE_USDC}, router timeout ${c.ROUTER_TIMEOUT_MS} ms`);
   console.log(`paid work        ${paidWorkEnabled(c) ? "ENABLED" : "off"}${c.PAUSED ? " (paused)" : ""}`);
   for (const p of configProblems()) {
     console.log(`problem          ${p}`);
@@ -64,21 +60,24 @@ async function main() {
     failures += 1;
   }
 
-  console.log("\n== who would serve each step today (leaderboard, price cap, adapter fit)");
-  const seen = new Set<string>();
-  for (const s of [...RESEARCH_STEPS, ...NEWS_STEPS]) {
-    const intent = s.route === "engine" ? (s.fallbackIntent ?? s.intent) : s.intent;
-    if (seen.has(`${s.id}`)) continue;
-    seen.add(s.id);
-    try {
-      const ranked = await rankedFor(intent);
-      const fit = ranked.filter((r) => adapterFor(intent, r.miner).build(SAMPLE[intent] ?? {}, r.miner) !== null).slice(0, 3);
-      const line = fit.map((r) => `${r.miner.slug}#${r.rank ?? "?"}`).join(", ");
-      console.log(`${s.id.padEnd(11)} ${intent.padEnd(21)} ${s.route === "engine" ? "router first, then " : ""}${line || "NO CANDIDATE"} (${ranked.length} listed)`);
-      if (!fit.length) failures += 1;
-    } catch (e) {
-      console.log(`${s.id.padEnd(11)} ${intent.padEnd(21)} catalogue error: ${(e as Error).message}`);
-      failures += 1;
+  console.log("\n== the questions, and who leads each intent today (the router chooses; this is who it is likely to choose)");
+  const plans = [parseQuery("research", "https://arxiv.org/abs/1706.03762 in Hindi"), parseQuery("news", "AI regulation in India, in Hindi")];
+  for (const parsed of plans) {
+    for (const s of buildPlan(parsed)) {
+      const d = deriveInput(s, parsed, SAMPLE_CONTEXT);
+      const q = "skip" in d ? `(skipped: ${d.skip})` : d.queries[0].replace(/\s+/g, " ").slice(0, 110) + (d.queries[0].length > 110 ? "…" : "");
+      let lead = "";
+      try {
+        const top = (await leaderboard(s.intent)).slice(0, 3);
+        lead = top.map((r) => `${r.miner.slug}#${r.rank ?? "?"}`).join(", ") || "NO ACTIVE MINER";
+        if (!top.length) failures += 1;
+      } catch (e) {
+        lead = `catalogue error: ${(e as Error).message}`;
+        failures += 1;
+      }
+      console.log(`${s.id.padEnd(11)} ${s.intent.padEnd(21)} ${lead}`);
+      console.log(`${"".padEnd(11)} accepts ${s.accept.join(", ")}`);
+      console.log(`${"".padEnd(11)} asks    ${q}`);
     }
   }
   console.log(`\n${failures === 0 ? "preflight clean" : `${failures} problem(s)`}`);

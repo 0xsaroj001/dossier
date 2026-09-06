@@ -29,12 +29,12 @@ describe("buildReceipt", () => {
   it("reads settlement, hash and mapping-driven fields", () => {
     const r = buildReceipt(
       { miner_id: 4433, miner_name: "LiveCert", result: { verdict: "translated", confidence: 1, reason: "नमस्ते" }, cost_usd: 0.01, duration_ms: 320.4, signal_hash: "0xabc", settlement: { success: true, txHash: "0xdef", payer: "0x1", errorReason: null } },
-      { intent: "LANGUAGE_TRANSLATION", miner: { id: "4433", slug: "livecert", signal_mapping: { confidence_field: "confidence", label_field: "verdict", reason_field: "reason" } }, rank: 1, routedBy: "app", endpoint: "/translate", payer: "0x1" },
+      { intent: "LANGUAGE_TRANSLATION", miner: { id: "4433", slug: "livecert", signal_mapping: { confidence_field: "confidence", label_field: "verdict", reason_field: "reason" } }, rank: 1, routerIntent: "LANGUAGE_TRANSLATION", endpoint: "/translate", payer: "0x1" },
     );
-    expect(r).toMatchObject({ minerSlug: "livecert", minerRank: 1, confidence: 1, label: "translated", answer: "नमस्ते", costUsd: 0.01, durationMs: 320, signalHash: "0xabc", settlementTx: "0xdef", routedBy: "app" });
+    expect(r).toMatchObject({ minerSlug: "livecert", minerRank: 1, confidence: 1, label: "translated", answer: "नमस्ते", costUsd: 0.01, durationMs: 320, signalHash: "0xabc", settlementTx: "0xdef", routerIntent: "LANGUAGE_TRANSLATION" });
   });
   it("labels a risk score instead of calling it confidence", () => {
-    const r = buildReceipt({ result: { risk: 0.9 } }, { intent: "STORM_ALERT", miner: { id: "1", slug: "storm", signal_mapping: { confidence_field: "risk" } }, rank: null, routedBy: "app", payer: null });
+    const r = buildReceipt({ result: { risk: 0.9 } }, { intent: "STORM_ALERT", miner: { id: "1", slug: "storm", signal_mapping: { confidence_field: "risk" } }, rank: null, payer: null });
     expect(r.confidence).toBe(0.9);
     expect(r.confidenceNote).toMatch(/risk/);
   });

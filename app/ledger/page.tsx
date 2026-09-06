@@ -153,9 +153,9 @@ export default async function LedgerPage() {
               <tr>
                 <th>When (UTC)</th>
                 <th>Mode · step</th>
-                <th>Intent</th>
+                <th>Step intent</th>
                 <th>Miner (rank)</th>
-                <th>Chosen by</th>
+                <th>Routed as</th>
                 <th>Conf.</th>
                 <th>Cost</th>
                 <th>ms</th>
@@ -176,7 +176,7 @@ export default async function LedgerPage() {
                     {r.minerSlug ?? "—"}
                     {r.minerRank ? ` (#${r.minerRank})` : ""}
                   </td>
-                  <td>{r.routedBy === "engine" ? `router${r.routerIntent ? ` → ${r.routerIntent}` : ""}` : "app"}</td>
+                  <td className="mono">{r.routerIntent ?? "—"}</td>
                   <td>{typeof r.confidence === "number" ? `${Math.round(r.confidence * 100)}%` : "—"}</td>
                   <td>{typeof r.costUsd === "number" ? `$${r.costUsd.toFixed(3)}` : "—"}</td>
                   <td>{r.durationMs ?? "—"}</td>
@@ -198,7 +198,7 @@ export default async function LedgerPage() {
         </div>
       )}
       <p className="note" style={{ marginTop: 10 }}>
-        Status <i>unusable</i> means the miner answered (and was paid) but the answer could not serve the step, so the next-ranked miner was tried. <i>error</i>, <i>unpaid</i> and <i>timeout</i> rows were not charged, except that a timed-out call can settle late; the chain count above would show it.
+        Every row is one question to Telegraph&apos;s router. Status <i>unusable</i> means the miner the router chose answered (and was paid) but the answer could not serve the step, so the question was asked once more in different words. <i>error</i>, <i>unpaid</i> and <i>timeout</i> rows were not charged, except that a timed-out call can settle late; the chain count above would show it.
       </p>
     </>
   );

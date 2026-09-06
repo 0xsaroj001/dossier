@@ -2,35 +2,38 @@
 
 **Ask once. Get the case file.** A Telegraph Hackathon Season I, Track 3 application.
 
-Paste a link to a research paper, or name a news topic, and Dossier runs it through the
-Telegraph miner network one intent at a time, then hands back a single case file where every
-line says which miner answered, how sure it was, what it cost, and where the payment settled on
-Base Sepolia.
+Paste a link to a research paper, or name a news topic, and Dossier turns it into a sequence of
+questions for Telegraph's router. The network classifies each question into an intent, picks a
+ranked miner, and answers; Dossier assembles the answers into one case file where every line
+says which miner answered, how it was routed, how sure it was, what it cost, and where the
+payment settled on Base Sepolia.
 
-- **Research mode**, eight steps over seven intents: `CONTENT_EXTRACTION` (read the page, then
-  its bibliographic record), `AI_TEXT_DETECTION`, `FRAUD_DETECTION`, `FACT_CHECK`,
-  `CONTENT_VERIFICATION` (dispatched by Telegraph's own router), `ACADEMIC_SEARCH`,
-  `LANGUAGE_TRANSLATION`.
-- **News mode**, three to four steps over four intents: `NEWS_HEADLINES`, `NEWS_SEARCH`
-  (router-dispatched), `CHAT_COMPLETION`, `LANGUAGE_TRANSLATION`.
+- **Research mode**, eight questions over seven intents: `CONTENT_EXTRACTION` (the page, then
+  its abstract), `AI_TEXT_DETECTION`, `FRAUD_DETECTION`, `FACT_CHECK`, `CONTENT_VERIFICATION`
+  (the provenance question), `ACADEMIC_SEARCH`, `LANGUAGE_TRANSLATION`.
+- **News mode**, three to four questions over four intents: `NEWS_HEADLINES`, `NEWS_SEARCH`,
+  `CHAT_COMPLETION`, `LANGUAGE_TRANSLATION`.
 
 One query such as *"Extract the research paper at https://arxiv.org/abs/1706.03762 in Hindi"*
 is the whole interface. The language, region and section are read from the sentence.
 
 ## What makes it honest
 
+- **Routed, never hand-picked.** The app never names a miner. Every question is an auto-routed
+  `POST /engine/v1/ask`; the router's intent and its stated reasoning are on every receipt.
+  Long passages ride along in the request's `context` so the miner gets them intact.
 - **Nothing is mocked.** Every step is a paid x402 call to a live miner. A step that fails says
-  which miner failed and that failed calls are not charged. A miner that answers but cannot be
-  used (a translation engine without the language pair) is shown as *unusable* and the
-  next-ranked miner is tried.
-- **Ranked, not hand-picked.** For each step the app reads the live leaderboard and calls the
-  best-ranked miner whose declared inputs fit the step. One step per dossier is handed to
-  Telegraph's router instead, and the receipt says what the router decided.
-- **Two ledgers.** `/ledger` lists every call the app has ever made. The same page counts the
-  payer wallet's USDC transfers to the Telegraph collector from a public explorer, so the volume
-  does not rest on the app's word. Every signal hash opens on the node at `/verify/{hash}`.
+  so and whether anything was charged. A miner that answers but cannot be used (a translation
+  engine without the language pair) is shown as *unusable*, and the question is asked once more
+  in different words. A question the router files under an intent the step cannot use is shown
+  as *off-target* rather than passed off as an answer.
+- **Two ledgers.** `/ledger` lists every question the app has ever asked. The same page counts
+  the payer wallet's USDC transfers to the Telegraph collector from a public explorer, so the
+  volume does not rest on the app's word. Every signal hash opens on the node at
+  `/verify/{hash}`.
 - **Spending is off by default.** No key, no budget, nothing is asked. A daily budget, a
-  per-browser allowance, a price cap and a pause flag guard the wallet.
+  per-browser allowance, a per-payment price cap in the x402 client, and a pause flag guard the
+  wallet.
 
 ## Run it
 
@@ -54,8 +57,9 @@ npm run preflight
 ```
 
 That is free: it checks the environment, the node's 402 challenge against the constants the
-client signs for, and which miner would serve each step today. The first paid check is one
-dossier from the command line, about $0.08 of testnet USDC:
+client signs for, the question each step will put to the router, and who leads the leaderboard
+for each intent today. The first paid check is one dossier from the command line, about $0.08
+of testnet USDC:
 
 ```bash
 npm run live -- research "https://arxiv.org/abs/1706.03762 in Hindi"
@@ -94,10 +98,12 @@ absolute. Without Redis everything still works, in memory, per instance.
 ## Limitations
 
 - Testnet. Base Sepolia, testnet USDC. The answers are real; the money is not.
-- One intent on the network, `CONTENT_VERIFICATION`, currently has a single miner and it
-  verifies images. The provenance step therefore asks Telegraph's router the verification
-  question and falls back to an `ACADEMIC_SEARCH` lookup by title; the receipt shows which
-  happened.
+- The router decides. It may hand a link to an extractor that only reads inline text, or file
+  a question under a neighbouring intent; Dossier shows that and asks once more in different
+  words, but it never overrides the network.
+- `CONTENT_VERIFICATION` currently has a single miner on the network and it verifies images.
+  The provenance question is put to the router as written; it usually lands on an academic
+  search or a fact-check, and the receipt says which.
 - "Visitors" are browsers: a random cookie stored as a salted hash. One person on two devices
   counts twice. The method is published next to the number.
 - Translation covers the first 700 characters of the abstract or briefing, cut at a sentence.
