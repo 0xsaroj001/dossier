@@ -74,6 +74,18 @@ The AI-text and translation questions carry up to 4,000 characters of passage. W
 classifier still files them correctly, and whether it truncates what it copies into the miner's
 `text`, can only be seen with paid traffic. `context` carries the exact passage as a hedge.
 
+### G15 · Network-wide settlement outage, 2026-09-06 from 09:18 UTC
+Every payment from any wallet has been refused with `insufficient_credits: facilitator returned
+403` since the last settlement to the collector at 09:17:50 UTC (read from Blockscout at 11:05).
+Dossier's own probe from the operator's machine and the paid journey on production both hit it.
+Nothing in the app can fix it; every step shows the node's message and that nothing was
+charged. Re-run `npm run ask -- "test"` to see when it clears.
+
+### G16 · Without Redis, production instances do not share memory
+Vercel runs several instances; a ledger row written by one is invisible to another. Production
+showed `calls: 0` beside `dossiers: 2` for exactly this reason. Connect Upstash Redis before
+sharing the link.
+
 ## Closed
 
 ### G1 · The paid path — CLOSED 2026-09-06 ~09:40 UTC, paying locally
