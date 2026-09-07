@@ -93,6 +93,14 @@ against the answers seen today (a burn address, a clean URL, a phishing message)
 phrases danger inside a negation ("not safe") reads as clear. Every check's own words are shown
 beside the verdict so a reader can overrule it.
 
+### G19 · The network is flaky on 2026-09-07 and the app can only show it
+Seen on one research run at ~06:00 UTC: the router named miners the node then declared "not
+currently routable" (scholarwire for ACADEMIC_SEARCH, textprocessing-sentiment for
+SENTIMENT_ANALYSIS), the facilitator's `/settle` timed out ("context deadline exceeded"), and
+the AI_TEXT_DETECTION miners were unavailable so the router fell back to a chat model, which the
+strict authorship step refuses. All are free failures and are named on the step. A third ask
+with the first wording is now allowed when both phrasings died as unroutable.
+
 ## Closed
 
 ### G1b · Deployment configured — CLOSED 2026-09-06 11:40 UTC

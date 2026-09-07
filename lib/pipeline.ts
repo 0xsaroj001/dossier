@@ -405,8 +405,8 @@ function humanError(err: NodeError): string {
   if (err.kind === "timeout") return "The network did not answer in time. If the call lands late it will settle on chain without a ledger row.";
   if (err.kind === "unpaid") return `The payment was not accepted, so nothing was asked and nothing was charged (${err.message}).`;
   const detail = err.message.replace(/^The node answered \d+:\s*/, "").slice(0, 220);
-  if (/routing failed|routing decision/i.test(detail)) return `Telegraph's router could not classify this question; nothing was charged (${detail}).`;
   if (/not currently routable/i.test(detail)) return `The router picked a miner the network then declared unroutable; nothing was charged (${detail}).`;
+  if (/routing failed|routing decision/i.test(detail)) return `Telegraph's router could not classify this question; nothing was charged (${detail}).`;
   if (err.status !== null && err.status >= 500) return `The miner the router chose failed on its side; failed calls are not charged (${detail}).`;
   return err.message;
 }
@@ -551,8 +551,13 @@ export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Cont
   const attempts: Attempt[] = [];
   let offTarget: Outcome | null = null;
   let lastError = "The network could not serve this step.";
+  // The router is probabilistic and "not currently routable" is a free failure, so one more ask
+  // with the first wording is allowed when both phrasings failed that way.
+  const unroutable = (e: NodeError | null) => Boolean(e && e.kind === "node" && /not currently routable|routing failed/i.test(e.message));
+  const plan: Array<1 | 2> = [1, 2];
   try {
-    for (const phrasing of [1, 2] as const) {
+    for (let i = 0; i < plan.length; i += 1) {
+      const phrasing = plan[i] as 1 | 2;
       const allowance = await checkAllowance(ctx.store, ctx.visitor);
       if (!allowance.ok) {
         if (phrasing === 1) return { ...base, status: "error", receipt: null, data: null, error: allowance.reason, attempts };
@@ -564,6 +569,7 @@ export async function runStep(spec: StepSpec, parsed: ParsedQuery, context: Cont
         lastError = humanError(r.error);
         // A timeout has an unknown outcome and the call may still settle; never send the question again.
         if (r.error.kind === "timeout") break;
+        if (plan.length === 2 && i === 1 && unroutable(r.error) && attempts.every((a) => a.outcome === "error")) plan.push(1);
         continue;
       }
       if (r.outcome && r.usable && r.accepted) {
