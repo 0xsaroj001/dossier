@@ -45,6 +45,26 @@ function yearOf(date: string | null): string | null {
   return date?.match(/\b(19|20)\d{2}\b/)?.[0] ?? null;
 }
 
+/**
+ * Prose without LaTeX. Abstracts on arXiv carry `$\mathbb{V}$`, `\emph{}` and the like; the
+ * backslashes break the JSON the router's LLM emits ("invalid character 'm' in string escape
+ * code", seen 2026-09-07), so commands are dropped, their arguments kept, and math delimiters
+ * removed before any text is sent or shown.
+ */
+export function plainText(s: string | null): string | null {
+  if (!s) return s;
+  return (
+    s
+      .replace(/\\(?:mathbb|mathcal|mathrm|mathbf|mathit|textbf|textit|emph|text|operatorname)\s*\{([^{}]*)\}/g, "$1")
+      .replace(/\\[A-Za-z]+\s*/g, "")
+      .replace(/\\./g, "")
+      .replace(/\$+/g, "")
+      .replace(/[{}]/g, "")
+      .replace(/\s+/g, " ")
+      .trim() || null
+  );
+}
+
 /** Parse the metadata out of a page's HTML. Exported for tests. */
 export function parseSourceHtml(url: string, html: string): SourceMeta {
   const tags = metas(html);
@@ -75,7 +95,7 @@ export function parseSourceHtml(url: string, html: string): SourceMeta {
         return null;
       }
     })();
-  return { url, title, authors: authors.slice(0, 20), abstract, date, year: yearOf(date), site, method: "meta-tags", fetchedAt: new Date().toISOString() };
+  return { url, title: plainText(title), authors: authors.slice(0, 20), abstract: plainText(abstract), date, year: yearOf(date), site, method: "meta-tags", fetchedAt: new Date().toISOString() };
 }
 
 /** Loopback, link-local, private and reserved ranges, v4 and v4-mapped v6. */

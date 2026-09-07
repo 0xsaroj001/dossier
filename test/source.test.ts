@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeEntities, parseSourceHtml } from "@/lib/source";
+import { decodeEntities, parseSourceHtml, plainText } from "@/lib/source";
 
 const ARXIV = `<html><head>
 <title>[1706.03762] Attention Is All You Need</title>
@@ -24,5 +24,17 @@ describe("page metadata", () => {
   });
   it("decodes entities", () => {
     expect(decodeEntities("a &amp; b &#39;c&#x27; &quot;d&quot;")).toBe("a & b 'c' \"d\"");
+  });
+});
+
+describe("latex", () => {
+  it("strips LaTeX so no backslash reaches the router", () => {
+    const s = plainText("We prove $1)$ that $\\mathbb{V}$ on a variety $S$ is definable; \\emph{Hodge} loci of $(S, \\mathbb{V})$ are countable.");
+    expect(s).toBe("We prove 1) that V on a variety S is definable; Hodge loci of (S, V) are countable.");
+    expect(s).not.toMatch(/[\\$]/);
+    expect(plainText(null)).toBeNull();
+    const meta = parseSourceHtml("https://arxiv.org/abs/1810.04801", `<meta name="citation_title" content="Tame topology of $\\mathcal{A}$" /><meta property="og:description" content="${"word ".repeat(30)}$\\mathbb{V}$ end">`);
+    expect(meta.title).toBe("Tame topology of A");
+    expect(meta.abstract).not.toMatch(/\\/);
   });
 });

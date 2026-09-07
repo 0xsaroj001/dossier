@@ -4,6 +4,7 @@ import { fallbackData, readerFor, titlesFromProse, type Article, type Parsed, ty
 import { utcDay } from "./config";
 import { checkAllowance, noteAttempt } from "./guard";
 import { buildReceipt } from "./receipt";
+import { plainText } from "./source";
 import type { Store } from "./store";
 import { askRouted, NodeError, payerAddress, rankOf, resolveMiner, type EngineResponse } from "./telegraph";
 import type { Attempt, DossierSummary, LedgerRow, Mode, ParsedQuery, Receipt, StepId, StepResult, StepSpec } from "./types";
@@ -77,10 +78,10 @@ const rec = (v: unknown): Rec => (v && typeof v === "object" ? (v as Rec) : {});
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((a): a is string => typeof a === "string") : []);
 
-/** The paper as the page describes itself. */
+/** The paper as the page describes itself, with LaTeX stripped in case an older client sent it raw. */
 export function metaOf(c: Context): Meta {
   const s = rec(c.source);
-  return { title: str(s["title"]), authors: strs(s["authors"]), abstract: str(s["abstract"]), date: str(s["date"]), year: str(s["year"]) };
+  return { title: plainText(str(s["title"])), authors: strs(s["authors"]), abstract: plainText(str(s["abstract"])), date: str(s["date"]), year: str(s["year"]) };
 }
 
 function articlesOf(v: unknown): Article[] {
@@ -403,7 +404,10 @@ function toNodeError(e: unknown): NodeError {
 function humanError(err: NodeError): string {
   if (err.kind === "timeout") return "The network did not answer in time. If the call lands late it will settle on chain without a ledger row.";
   if (err.kind === "unpaid") return `The payment was not accepted, so nothing was asked and nothing was charged (${err.message}).`;
-  if (err.status !== null && err.status >= 500) return "The miner the router chose failed on its side; failed calls are not charged.";
+  const detail = err.message.replace(/^The node answered \d+:\s*/, "").slice(0, 220);
+  if (/routing failed|routing decision/i.test(detail)) return `Telegraph's router could not classify this question; nothing was charged (${detail}).`;
+  if (/not currently routable/i.test(detail)) return `The router picked a miner the network then declared unroutable; nothing was charged (${detail}).`;
+  if (err.status !== null && err.status >= 500) return `The miner the router chose failed on its side; failed calls are not charged (${detail}).`;
   return err.message;
 }
 

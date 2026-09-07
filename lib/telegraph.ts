@@ -120,12 +120,20 @@ function snippet(text: string): string {
  * how a long passage or a structured hint reaches the miner intact while the question
  * itself stays short enough for the classifier.
  */
+/** A backslash anywhere in a question breaks the JSON the router's LLM emits; none may reach it. */
+function safeForRouter(v: unknown): unknown {
+  if (typeof v === "string") return v.replace(/\\/g, "");
+  if (Array.isArray(v)) return v.map(safeForRouter);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, safeForRouter(x)]));
+  return v;
+}
+
 export async function askRouted(query: string, context?: Record<string, unknown>, timeoutMs = config().ROUTER_TIMEOUT_MS): Promise<EngineResponse> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   const started = Date.now();
-  const body: Record<string, unknown> = { query };
-  if (context && Object.keys(context).length > 0) body["context"] = context;
+  const body: Record<string, unknown> = { query: safeForRouter(query) };
+  if (context && Object.keys(context).length > 0) body["context"] = safeForRouter(context);
   try {
     const res = await payingFetch()(`${nodeUrl()}/engine/v1/ask`, {
       method: "POST",
